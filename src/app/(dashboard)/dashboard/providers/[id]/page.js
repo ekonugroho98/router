@@ -16,6 +16,8 @@ import ConnectionRow from "./ConnectionRow";
 import AddApiKeyModal from "./AddApiKeyModal";
 import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
+// ADDON: kiro-bulk
+import BulkKiroLoginModal from "../components/BulkKiroLoginModal";
 
 export default function ProviderDetailPage() {
   const params = useParams();
@@ -39,6 +41,7 @@ export default function ProviderDetailPage() {
   const [modelsTestError, setModelsTestError] = useState("");
   const [testingModelId, setTestingModelId] = useState(null);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
+  const [showBulkKiroModal, setShowBulkKiroModal] = useState(false); // ADDON: kiro-bulk
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -1077,6 +1080,12 @@ export default function ProviderDetailPage() {
                 >
                   {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
                 </Button>
+                {/* ADDON: kiro-bulk — bulk auto-add (empty state) */}
+                {providerId === "kiro" && (
+                  <Button size="sm" icon="rocket_launch" variant="secondary" onClick={() => setShowBulkKiroModal(true)}>
+                    Bulk Add
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -1111,6 +1120,19 @@ export default function ProviderDetailPage() {
                   >
                     Add
                   </Button>
+                  {/* ADDON: kiro-bulk — bulk auto-add Kiro accounts via Camoufox sidecar */}
+                  {providerId === "kiro" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkKiroModal(true)}
+                      title="Bulk auto-add Kiro accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
                 </div>
               )}
             </>
@@ -1209,6 +1231,16 @@ export default function ProviderDetailPage() {
           setShowAddApiKeyModal(false);
         }}
       />
+      {/* ADDON: kiro-bulk */}
+      {providerId === "kiro" && (
+        <BulkKiroLoginModal
+          isOpen={showBulkKiroModal}
+          onClose={() => setShowBulkKiroModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
       <EditConnectionModal
         isOpen={showEditModal}
         connection={selectedConnection}

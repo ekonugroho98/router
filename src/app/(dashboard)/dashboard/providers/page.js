@@ -26,6 +26,8 @@ import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useHeaderSearchStore } from "@/store/headerSearchStore";
 import ModelAvailabilityBadge from "./components/ModelAvailabilityBadge";
+// ADDON: kiro-bulk
+import BulkKiroLoginModal from "./components/BulkKiroLoginModal";
 
 function getStatusDisplay(connected, error, errorCode) {
   const parts = [];
@@ -102,6 +104,7 @@ export default function ProvidersPage() {
   const [loading, setLoading] = useState(true);
   const [showAllApikey, setShowAllApikey] = useState(false);
   const [showAddCompatibleModal, setShowAddCompatibleModal] = useState(false);
+  const [showBulkKiroModal, setShowBulkKiroModal] = useState(false); // ADDON: kiro-bulk
   const [showAddAnthropicCompatibleModal, setShowAddAnthropicCompatibleModal] =
     useState(false);
   const [testingMode, setTestingMode] = useState(null);
@@ -323,6 +326,18 @@ export default function ProvidersPage() {
           <p className="text-text-muted text-sm">No providers match your search</p>
         </div>
       )}
+
+      {/* ADDON: kiro-bulk — Bulk Auto-Add Kiro Accounts button */}
+      <div className="flex justify-end">
+        <Button
+          size="sm"
+          variant="secondary"
+          icon="rocket_launch"
+          onClick={() => setShowBulkKiroModal(true)}
+        >
+          Bulk Add Kiro Accounts
+        </Button>
+      </div>
 
       {/* Custom Providers (OpenAI/Anthropic Compatible) — dynamic */}
       <div className="flex flex-col gap-4">
@@ -556,6 +571,16 @@ export default function ProvidersPage() {
         onCreated={(node) => {
           setProviderNodes((prev) => [...prev, node]);
           setShowAddAnthropicCompatibleModal(false);
+        }}
+      />
+
+      {/* ADDON: kiro-bulk */}
+      <BulkKiroLoginModal
+        isOpen={showBulkKiroModal}
+        onClose={() => setShowBulkKiroModal(false)}
+        onSuccess={() => {
+          // refresh providers list
+          if (typeof loadProviders === "function") loadProviders();
         }}
       />
 

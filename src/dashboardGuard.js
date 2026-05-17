@@ -29,6 +29,8 @@ const PUBLIC_API_PATHS = [
   "/api/auth/oidc",
   "/api/version",
   "/api/settings/require-login",
+  "/api/customer",       // ADDON: saas-mt — customer auth has its own session/cookie
+  "/install-hermes.sh",  // ADDON: saas-mt — public installer script
 ];
 
 // Public top-level prefixes (LLM API endpoints with their own API key auth).
@@ -193,6 +195,11 @@ export async function proxy(request) {
     }
 
     return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  // ADDON: saas-mt — customer pages have their own session auth
+  if (pathname.startsWith("/customer")) {
+    return NextResponse.next();
   }
 
   // Redirect / to /dashboard if logged in, or /dashboard if it's the root

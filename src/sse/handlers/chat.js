@@ -7,6 +7,8 @@ import {
   extractApiKey,
   isValidApiKey,
 } from "../services/auth.js";
+// ADDON: saas-mt — multi-tenant customer identification + quota
+import { identifyTenant, checkQuota, logTenantUsage } from "../services/tenantAuth.js";
 import { cacheClaudeHeaders } from "open-sse/utils/claudeHeaderCache.js";
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
@@ -67,7 +69,43 @@ export async function handleChat(request, clientRawRequest = null) {
 
   // Enforce API key if enabled in settings
   const settings = await getSettings();
-  if (settings.requireApiKey) {
+
+  // ADDON: saas-mt — Try multi-tenant identification first (customer keys).
+  // If matched, enforce per-customer quota. Otherwise fall through to admin
+  // auth flow (existing 9router apiKeys table).
+  let tenant = null;
+  const requestStartMs = Date.now();
+  if (apiKey) {
+    tenant = await identifyTenant(apiKey);
+    if (tenant) {
+      const quota = await checkQuota(tenant.customer);
+      if (!quota.ok) {
+        log.warn("TENANT", `Quota exceeded for ${tenant.customer.email}: ${quota.reason}`);
+        // Log the failed request for analytics
+        logTenantUsage(tenant, {
+          status: "quota_exceeded",
+          errorMessage: quota.message,
+          model: modelStr,
+          latencyMs: Date.now() - requestStartMs,
+        });
+        return errorResponse(HTTP_STATUS.TOO_MANY_REQUESTS, quota.message);
+      }
+      log.debug("TENANT", `customer=${tenant.customer.email} plan=${tenant.customer.plan}`);
+      // Pre-log the request initiation — counts against quota.
+      // Status='success' is optimistic; if upstream errors out, we'd ideally
+      // update to 'error' but that requires stream wrapping (TODO Phase 2 polish).
+      // For MVP: counter increments per request to prevent runaway costs.
+      logTenantUsage(tenant, {
+        model: modelStr,
+        status: "success",
+        latencyMs: 0, // updated later if we wrap stream
+      });
+    }
+  }
+  // END ADDON: saas-mt
+
+  if (settings.requireApiKey && !tenant) {
+    // Tenant identification already handled auth — only check admin path if not a customer
     if (!apiKey) {
       log.warn("AUTH", "Missing API key (requireApiKey=true)");
       return errorResponse(HTTP_STATUS.UNAUTHORIZED, "Missing API key");

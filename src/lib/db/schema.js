@@ -148,6 +148,99 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_rd_conn ON requestDetails(connectionId)",
     ],
   },
+
+  // ADDON: saas-mt — multi-tenant customer accounts (signup/login)
+  // Each customer has a separate account with their own API keys + usage quota.
+  // Customer-facing /customer/* routes use this for auth.
+  customers: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      email: "TEXT UNIQUE NOT NULL",
+      passwordHash: "TEXT NOT NULL",            // bcrypt hash
+      displayName: "TEXT",
+      plan: "TEXT DEFAULT 'free'",              // 'free', 'pro', 'enterprise'
+      quotaDailyLimit: "INTEGER DEFAULT 1000",  // req/day cap (0 = unlimited)
+      quotaMonthlyLimit: "INTEGER DEFAULT 30000", // req/month cap (0 = unlimited)
+      isActive: "INTEGER DEFAULT 1",            // 0 = suspended
+      suspendedReason: "TEXT",
+      metadata: "TEXT",                          // JSON: {phone, country, custom...}
+      createdAt: "TEXT NOT NULL",
+      updatedAt: "TEXT NOT NULL",
+      lastLoginAt: "TEXT",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_cust_active ON customers(isActive)",
+      "CREATE INDEX IF NOT EXISTS idx_cust_plan ON customers(plan)",
+    ],
+  },
+
+  // ADDON: saas-mt — API keys owned by customers (1:N relation)
+  // Customer can have multiple keys (e.g. dev/prod, multiple bots, etc.).
+  // Admin API keys remain in `apiKeys` table — these are SEPARATE.
+  customerApiKeys: {
+    columns: {
+      id: "TEXT PRIMARY KEY",
+      customerId: "TEXT NOT NULL",              // FK → customers.id
+      key: "TEXT UNIQUE NOT NULL",              // sk-cortex-xxxxx format
+      name: "TEXT",                              // user-friendly label (e.g. "prod-bot")
+      isActive: "INTEGER DEFAULT 1",
+      lastUsedAt: "TEXT",
+      createdAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_cak_customer ON customerApiKeys(customerId)",
+      "CREATE INDEX IF NOT EXISTS idx_cak_active ON customerApiKeys(isActive)",
+    ],
+  },
+
+  // ADDON: saas-mt — per-customer usage log + aggregation helpers
+  // Separate from `usageHistory` (admin/system) for clean tenant isolation.
+  // dateKey/monthKey enable fast "usage today / this month" queries via index.
+  customerUsage: {
+    columns: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      customerId: "TEXT NOT NULL",
+      apiKeyId: "TEXT",                          // which customer key was used (nullable for system events)
+      timestamp: "TEXT NOT NULL",                // ISO 8601 datetime
+      dateKey: "TEXT NOT NULL",                  // YYYY-MM-DD for fast daily group-by
+      monthKey: "TEXT NOT NULL",                 // YYYY-MM for monthly aggregates
+      provider: "TEXT",                           // which upstream provider was routed to
+      model: "TEXT",
+      connectionId: "TEXT",                       // which provider connection (admin-side)
+      promptTokens: "INTEGER DEFAULT 0",
+      completionTokens: "INTEGER DEFAULT 0",
+      cost: "REAL DEFAULT 0",                    // USD or local currency unit
+      status: "TEXT",                             // 'success', 'error', 'quota_exceeded', 'auth_fail'
+      errorMessage: "TEXT",                       // truncated error msg if status != success
+      latencyMs: "INTEGER",                       // request latency for SLA monitoring
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_cu_customer_ts ON customerUsage(customerId, timestamp DESC)",
+      "CREATE INDEX IF NOT EXISTS idx_cu_customer_date ON customerUsage(customerId, dateKey)",
+      "CREATE INDEX IF NOT EXISTS idx_cu_customer_month ON customerUsage(customerId, monthKey)",
+      "CREATE INDEX IF NOT EXISTS idx_cu_status ON customerUsage(status)",
+    ],
+  },
+
+  // ADDON: saas-mt — server-side sessions for customer login
+  // Cookie-based session (not JWT) — easier to invalidate on logout/admin-suspend.
+  // Token = random opaque string, stored as bcrypt hash for defense-in-depth.
+  customerSessions: {
+    columns: {
+      id: "TEXT PRIMARY KEY",                    // random session ID (set in cookie)
+      customerId: "TEXT NOT NULL",               // FK → customers.id
+      tokenHash: "TEXT NOT NULL",                // bcrypt hash of full token (extra safety)
+      userAgent: "TEXT",
+      ipAddress: "TEXT",
+      createdAt: "TEXT NOT NULL",
+      expiresAt: "TEXT NOT NULL",                // ISO 8601 — server-enforced
+      lastSeenAt: "TEXT",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_cs_customer ON customerSessions(customerId)",
+      "CREATE INDEX IF NOT EXISTS idx_cs_expires ON customerSessions(expiresAt)",
+    ],
+  },
 };
 
 export function buildCreateTableSql(name, def) {

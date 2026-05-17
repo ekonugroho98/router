@@ -67,6 +67,31 @@ export {
   saveRequestDetail, getRequestDetails, getRequestDetailById,
 } from "./repos/requestDetailsRepo.js";
 
+// ADDON: saas-mt — Multi-tenant customer system
+export {
+  createCustomer, getCustomerById, getCustomerByEmail, getCustomerForAuth,
+  listCustomers, countCustomers, updateCustomer, deleteCustomer, touchLastLogin,
+} from "./repos/customersRepo.js";
+
+export {
+  generateCustomerApiKey, createCustomerApiKey, getCustomerApiKeyById,
+  getCustomerByApiKey, listCustomerApiKeys,
+  revokeCustomerApiKey, deleteCustomerApiKey,
+  touchKeyUsed, regenerateCustomerApiKey,
+} from "./repos/customerApiKeysRepo.js";
+
+export {
+  logCustomerUsage, getCustomerUsageToday, getCustomerUsageThisMonth,
+  getCustomerUsageDaily, getCustomerUsageRecent, getCustomersUsageSummary,
+  pruneOldUsage,
+} from "./repos/customerUsageRepo.js";
+
+export {
+  createCustomerSession, verifyCustomerSession,
+  deleteCustomerSession, deleteAllCustomerSessions,
+  pruneExpiredSessions, listCustomerSessions,
+} from "./repos/customerSessionsRepo.js";
+
 // Export/import full DB
 export async function exportDb() {
   const db = await getAdapter();

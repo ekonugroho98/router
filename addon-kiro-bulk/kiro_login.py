@@ -645,11 +645,23 @@ async def main() -> None:
             proxy_arg = {"server": PROXY}
             prog(f"Using proxy: {PROXY[:30]}...")
 
+        # Memory optimization buat VPS RAM kecil (2GB)
+        # Firefox prefs reduce memory footprint per browser ~100MB
+        memory_efficient_prefs = {
+            "browser.cache.memory.capacity": 65536,        # 64MB (default 256MB)
+            "browser.cache.disk.enable": False,            # no disk cache
+            "browser.sessionhistory.max_total_viewers": 1, # less history cache
+            "image.mem.decode_bytes_at_a_time": 4096,
+            "media.cache_size": 0,                         # no media cache
+            "browser.tabs.remote.warmup.enabled": False,
+        }
+
         try:
             async with AsyncCamoufox(
                 headless=HEADLESS,
                 geoip=ARGS.geoip,
                 proxy=proxy_arg,
+                firefox_user_prefs=memory_efficient_prefs,
             ) as browser:
                 page = await browser.new_page()
                 await do_login(page)

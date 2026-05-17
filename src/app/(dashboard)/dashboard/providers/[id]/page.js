@@ -18,6 +18,10 @@ import EditCompatibleNodeModal from "./EditCompatibleNodeModal";
 import AddCustomModelModal from "./AddCustomModelModal";
 // ADDON: kiro-bulk
 import BulkKiroLoginModal from "../components/BulkKiroLoginModal";
+// ADDON: openrouter-bulk
+import BulkOpenRouterLoginModal from "../components/BulkOpenRouterLoginModal";
+// ADDON: gemini-cli-bulk
+import BulkGeminiCliLoginModal from "../components/BulkGeminiCliLoginModal";
 
 export default function ProviderDetailPage() {
   const params = useParams();
@@ -42,6 +46,8 @@ export default function ProviderDetailPage() {
   const [testingModelId, setTestingModelId] = useState(null);
   const [showAddCustomModel, setShowAddCustomModel] = useState(false);
   const [showBulkKiroModal, setShowBulkKiroModal] = useState(false); // ADDON: kiro-bulk
+  const [showBulkOpenRouterModal, setShowBulkOpenRouterModal] = useState(false); // ADDON: openrouter-bulk
+  const [showBulkGeminiCliModal, setShowBulkGeminiCliModal] = useState(false); // ADDON: gemini-cli-bulk
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -1086,6 +1092,18 @@ export default function ProviderDetailPage() {
                     Bulk Add
                   </Button>
                 )}
+                {/* ADDON: openrouter-bulk — bulk auto-add OpenRouter (empty state) */}
+                {providerId === "openrouter" && (
+                  <Button size="sm" icon="rocket_launch" variant="secondary" onClick={() => setShowBulkOpenRouterModal(true)}>
+                    Bulk Add
+                  </Button>
+                )}
+                {/* ADDON: gemini-cli-bulk — bulk auto-add Gemini CLI (empty state) */}
+                {providerId === "gemini-cli" && (
+                  <Button size="sm" icon="rocket_launch" variant="secondary" onClick={() => setShowBulkGeminiCliModal(true)}>
+                    Bulk Add
+                  </Button>
+                )}
               </div>
             </div>
           ) : (
@@ -1128,6 +1146,32 @@ export default function ProviderDetailPage() {
                       variant="secondary"
                       onClick={() => setShowBulkKiroModal(true)}
                       title="Bulk auto-add Kiro accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
+                  {/* ADDON: openrouter-bulk — bulk auto-add OpenRouter accounts via Camoufox sidecar */}
+                  {providerId === "openrouter" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkOpenRouterModal(true)}
+                      title="Bulk auto-add OpenRouter accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
+                  {/* ADDON: gemini-cli-bulk — bulk auto-add Gemini CLI accounts via Camoufox sidecar */}
+                  {providerId === "gemini-cli" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkGeminiCliModal(true)}
+                      title="Bulk auto-add Gemini CLI accounts via browser automation"
                       className="w-full sm:w-auto"
                     >
                       Bulk Add
@@ -1236,6 +1280,26 @@ export default function ProviderDetailPage() {
         <BulkKiroLoginModal
           isOpen={showBulkKiroModal}
           onClose={() => setShowBulkKiroModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
+      {/* ADDON: openrouter-bulk */}
+      {providerId === "openrouter" && (
+        <BulkOpenRouterLoginModal
+          isOpen={showBulkOpenRouterModal}
+          onClose={() => setShowBulkOpenRouterModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
+      {/* ADDON: gemini-cli-bulk */}
+      {providerId === "gemini-cli" && (
+        <BulkGeminiCliLoginModal
+          isOpen={showBulkGeminiCliModal}
+          onClose={() => setShowBulkGeminiCliModal(false)}
           onSuccess={() => {
             if (typeof fetchConnections === "function") fetchConnections();
           }}

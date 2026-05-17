@@ -81,6 +81,25 @@ log "Setup systemd user service..."
 SYSTEMD_DIR="${HOME}/.config/systemd/user"
 mkdir -p "${SYSTEMD_DIR}"
 
+# Create wrapper script that starts Xvfb + Python server together
+# (ExecStartPre with background Xvfb causes systemd SIGTERM issues)
+WRAPPER="${SCRIPT_DIR}/start-sidecar.sh"
+cat > "${WRAPPER}" <<'WRAPPER_EOF'
+#!/bin/bash
+pkill -f "Xvfb :99" 2>/dev/null || true
+sleep 0.5
+Xvfb :99 -screen 0 1920x1080x24 -ac -nolisten tcp -dpi 96 +extension RANDR &
+XVFB_PID=$!
+sleep 1
+export DISPLAY=:99
+trap "kill $XVFB_PID 2>/dev/null" EXIT
+exec PYTHON_BIN server.py --host 0.0.0.0 --port PORT_NUM
+WRAPPER_EOF
+# Inject actual paths into wrapper
+sed -i "s|PYTHON_BIN|${SCRIPT_DIR}/.venv/bin/python|" "${WRAPPER}"
+sed -i "s|PORT_NUM|9100|" "${WRAPPER}"
+chmod +x "${WRAPPER}"
+
 SERVICE_FILE="${SYSTEMD_DIR}/kiro-bulk-sidecar.service"
 cat > "${SERVICE_FILE}" <<EOF
 [Unit]
@@ -94,11 +113,7 @@ Environment="PATH=${SCRIPT_DIR}/.venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="KIRO_BULK_ROUTER_URL=http://localhost:20128"
 Environment="KIRO_BULK_CLI_TOKEN=${CLI_TOKEN}"
 Environment="KIRO_BULK_PORT=9100"
-Environment="DISPLAY=:99"
-# Xvfb buat virtual display (Camoufox headed mode di headless VPS)
-ExecStartPre=/bin/bash -c 'pkill -f "Xvfb :99" 2>/dev/null; Xvfb :99 -screen 0 1920x1080x24 -ac -nolisten tcp -dpi 96 +extension RANDR &'
-ExecStart=${SCRIPT_DIR}/.venv/bin/python ${SCRIPT_DIR}/server.py --host 127.0.0.1 --port 9100
-ExecStopPost=/bin/bash -c 'pkill -f "Xvfb :99" 2>/dev/null || true'
+ExecStart=${SCRIPT_DIR}/start-sidecar.sh
 Restart=on-failure
 RestartSec=10
 StandardOutput=append:${SCRIPT_DIR}/logs/sidecar.log

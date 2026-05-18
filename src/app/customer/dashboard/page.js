@@ -1,10 +1,18 @@
 // ADDON: saas-mt — Customer dashboard (read-only usage view + API key management)
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CustomerDashboardPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-zinc-400">Loading...</div>}>
+      <CustomerDashboardInner />
+    </Suspense>
+  );
+}
+
+function CustomerDashboardInner() {
   const router = useRouter();
   const search = useSearchParams();
   const isWelcome = search?.get("welcome") === "1";

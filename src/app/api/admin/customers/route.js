@@ -1,6 +1,4 @@
 // ADDON: saas-mt — Admin API: list + create customers
-// NOTE: This relies on existing 9router admin auth (cookie-based dashboard auth).
-// In MVP we trust that /dashboard/* is already gated by the upstream auth flow.
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import {
@@ -9,12 +7,24 @@ import {
   createCustomer,
   createCustomerApiKey,
   getCustomersUsageSummary,
+  logAdminAction,
 } from "@/lib/db";
+import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+async function requireAdmin(request) {
+  const token = request.cookies.get("auth_token")?.value;
+  if (!token || !(await verifyDashboardAuthToken(token))) {
+    return NextResponse.json({ error: "Admin auth required" }, { status: 401 });
+  }
+  return null;
+}
+
 export async function GET(request) {
+  const authErr = await requireAdmin(request);
+  if (authErr) return authErr;
   const { searchParams } = new URL(request.url);
   const limit = Math.min(500, parseInt(searchParams.get("limit") || "100", 10));
   const offset = parseInt(searchParams.get("offset") || "0", 10);
@@ -44,6 +54,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const authErr = await requireAdmin(request);
+  if (authErr) return authErr;
+
   let body;
   try {
     body = await request.json();
@@ -58,6 +71,9 @@ export async function POST(request) {
   const quotaDailyLimit = Number(body?.quotaDailyLimit ?? 1000);
   const quotaMonthlyLimit = Number(body?.quotaMonthlyLimit ?? 30000);
 
+  if (quotaDailyLimit < 0 || quotaMonthlyLimit < 0) {
+    return NextResponse.json({ error: "Quotas must be >= 0" }, { status: 400 });
+  }
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password required" }, { status: 400 });
   }
@@ -88,6 +104,14 @@ export async function POST(request) {
     customerId: customer.id,
     name: "default",
   });
+
+  logAdminAction({
+    action: "create",
+    customerId: customer.id,
+    customerEmail: email,
+    changes: { plan, quotaDailyLimit, quotaMonthlyLimit },
+    adminIp: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
+  }).catch(() => {});
 
   return NextResponse.json({
     success: true,

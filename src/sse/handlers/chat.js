@@ -8,7 +8,7 @@ import {
   isValidApiKey,
 } from "../services/auth.js";
 // ADDON: saas-mt — multi-tenant customer identification + quota
-import { identifyTenant, checkQuota, logTenantUsage } from "../services/tenantAuth.js";
+import { identifyTenant, checkQuota, logTenantUsage, finalizeTenantUsage } from "../services/tenantAuth.js";
 import { cacheClaudeHeaders } from "open-sse/utils/claudeHeaderCache.js";
 import { getSettings } from "@/lib/localDb";
 import { getModelInfo, getComboModels } from "../services/model.js";
@@ -91,14 +91,12 @@ export async function handleChat(request, clientRawRequest = null) {
         return errorResponse(HTTP_STATUS.TOO_MANY_REQUESTS, quota.message);
       }
       log.debug("TENANT", `customer=${tenant.customer.email} plan=${tenant.customer.plan}`);
-      // Pre-log the request initiation — counts against quota.
-      // Status='success' is optimistic; if upstream errors out, we'd ideally
-      // update to 'error' but that requires stream wrapping (TODO Phase 2 polish).
-      // For MVP: counter increments per request to prevent runaway costs.
-      logTenantUsage(tenant, {
+      // Pre-log as 'pending' — counts against quota to prevent burst abuse.
+      // After upstream completes, finalizeTenantUsage updates to success/error.
+      tenant._usageRowId = await logTenantUsage(tenant, {
         model: modelStr,
-        status: "success",
-        latencyMs: 0, // updated later if we wrap stream
+        status: "pending",
+        latencyMs: 0,
       });
     }
   }
@@ -137,7 +135,7 @@ export async function handleChat(request, clientRawRequest = null) {
     
     const comboStickyLimit = settings.comboStickyRoundRobinLimit;
     log.info("CHAT", `Combo "${modelStr}" with ${comboModels.length} models (strategy: ${comboStrategy}, sticky: ${comboStickyLimit})`);
-    return handleComboChat({
+    const comboResponse = await handleComboChat({
       body,
       models: comboModels,
       handleSingleModel: (b, m) => handleSingleModelChat(b, m, clientRawRequest, request, apiKey),
@@ -146,10 +144,32 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStrategy,
       comboStickyLimit
     });
+    // ADDON: saas-mt — finalize pending usage after response
+    if (tenant?._usageRowId) {
+      const latencyMs = Date.now() - requestStartMs;
+      const isError = comboResponse?.status >= 400;
+      finalizeTenantUsage(tenant._usageRowId, {
+        status: isError ? "error" : "success",
+        latencyMs,
+        errorMessage: isError ? `HTTP ${comboResponse.status}` : null,
+      });
+    }
+    return comboResponse;
   }
 
   // Single model request
-  return handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  const singleResponse = await handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
+  // ADDON: saas-mt — finalize pending usage after response
+  if (tenant?._usageRowId) {
+    const latencyMs = Date.now() - requestStartMs;
+    const isError = singleResponse?.status >= 400;
+    finalizeTenantUsage(tenant._usageRowId, {
+      status: isError ? "error" : "success",
+      latencyMs,
+      errorMessage: isError ? `HTTP ${singleResponse.status}` : null,
+    });
+  }
+  return singleResponse;
 }
 
 /**

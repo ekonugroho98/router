@@ -16,6 +16,7 @@ import {
   getCustomerUsageToday,
   getCustomerUsageThisMonth,
   logCustomerUsage,
+  updateCustomerUsageStatus,
 } from "@/lib/db";
 import * as log from "../utils/logger.js";
 
@@ -95,15 +96,16 @@ export async function checkQuota(customer) {
 }
 
 /**
- * Log a tenant request (called AFTER upstream completes).
+ * Log a tenant request. Returns the usage row ID for later status update.
  *
  * @param {object} tenant - { customer, apiKey } from identifyTenant
  * @param {object} payload - usage data
+ * @returns {number|null} - usage row ID (for finalizeTenantUsage)
  */
 export async function logTenantUsage(tenant, payload = {}) {
-  if (!tenant?.customer?.id) return;
+  if (!tenant?.customer?.id) return null;
   try {
-    await logCustomerUsage({
+    return await logCustomerUsage({
       customerId: tenant.customer.id,
       apiKeyId: tenant.apiKey?.id || null,
       provider: payload.provider || null,
@@ -117,8 +119,30 @@ export async function logTenantUsage(tenant, payload = {}) {
       latencyMs: payload.latencyMs || null,
     });
   } catch (e) {
-    // Don't fail the request because of logging issues
     log.warn("TENANT", `logTenantUsage failed for customer ${tenant.customer.id}: ${e?.message || e}`);
+    return null;
+  }
+}
+
+/**
+ * Finalize a pending usage row after upstream request completes.
+ * Fire-and-forget — call after streaming response ends.
+ *
+ * @param {number|null} usageRowId - from logTenantUsage
+ * @param {object} result - { status, errorMessage, latencyMs, promptTokens, completionTokens }
+ */
+export async function finalizeTenantUsage(usageRowId, result = {}) {
+  if (!usageRowId) return;
+  try {
+    await updateCustomerUsageStatus(usageRowId, {
+      status: result.status || "success",
+      errorMessage: result.errorMessage || null,
+      latencyMs: result.latencyMs || null,
+      promptTokens: result.promptTokens,
+      completionTokens: result.completionTokens,
+    });
+  } catch (e) {
+    log.warn("TENANT", `finalizeTenantUsage failed for row ${usageRowId}: ${e?.message || e}`);
   }
 }
 

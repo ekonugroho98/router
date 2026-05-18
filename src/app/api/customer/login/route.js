@@ -6,14 +6,20 @@ import {
   touchLastLogin,
   createCustomerSession,
 } from "@/lib/db";
+import { rateLimit, getClientIp } from "@/lib/customer/rateLimit";
 
 const SESSION_COOKIE = "cortex_session";
 const SESSION_TTL_DAYS = 30;
+
+// 10 login attempts per IP per 15 minutes
+const loginLimiter = rateLimit({ windowMs: 15 * 60_000, max: 10, message: "Too many login attempts. Try again later." });
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request) {
+  const rl = loginLimiter.check(getClientIp(request));
+  if (!rl.ok) return NextResponse.json({ error: rl.message }, { status: 429 });
   let body;
   try {
     body = await request.json();

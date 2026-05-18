@@ -7,16 +7,22 @@ import {
   createCustomerApiKey,
   createCustomerSession,
 } from "@/lib/db";
+import { rateLimit, getClientIp } from "@/lib/customer/rateLimit";
 
 const SESSION_COOKIE = "cortex_session";
 const SESSION_TTL_DAYS = 30;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// 5 signups per IP per 15 minutes
+const signupLimiter = rateLimit({ windowMs: 15 * 60_000, max: 5, message: "Too many signups. Try again later." });
+
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request) {
+  const rl = signupLimiter.check(getClientIp(request));
+  if (!rl.ok) return NextResponse.json({ error: rl.message }, { status: 429 });
   let body;
   try {
     body = await request.json();

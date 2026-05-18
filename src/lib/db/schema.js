@@ -241,6 +241,23 @@ export const TABLES = {
       "CREATE INDEX IF NOT EXISTS idx_cs_expires ON customerSessions(expiresAt)",
     ],
   },
+
+  // ADDON: saas-mt — audit trail for admin actions on customers
+  customerAuditLog: {
+    columns: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      timestamp: "TEXT NOT NULL DEFAULT (datetime('now'))",
+      action: "TEXT NOT NULL",                   // 'create' | 'update' | 'delete' | 'reset_password' | 'suspend' | 'unsuspend'
+      customerId: "TEXT",                        // FK → customers.id (nullable for deleted customers)
+      customerEmail: "TEXT",                     // denormalized — preserved after delete
+      changes: "TEXT",                           // JSON of field changes { field: { from, to } }
+      adminIp: "TEXT",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_cal_customer ON customerAuditLog(customerId)",
+      "CREATE INDEX IF NOT EXISTS idx_cal_ts ON customerAuditLog(timestamp DESC)",
+    ],
+  },
 };
 
 export function buildCreateTableSql(name, def) {

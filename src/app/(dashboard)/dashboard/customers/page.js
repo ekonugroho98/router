@@ -314,6 +314,27 @@ function CustomerDetailModal({ customer, isOpen, onClose, onUpdated }) {
           </div>
         )}
 
+        {/* Usage trend chart (last 30 days) */}
+        {details?.usage?.daily?.length > 0 && (
+          <div>
+            <div className="mb-1 text-xs text-text-muted">Daily requests (last 30 days)</div>
+            <div className="flex items-end gap-[2px] h-16 rounded bg-zinc-950 border border-zinc-800 p-2">
+              {(() => {
+                const data = details.usage.daily;
+                const maxR = Math.max(...data.map((d) => d.requests), 1);
+                return data.map((d) => (
+                  <div key={d.date} className="flex-1 group relative" title={`${d.date}: ${d.requests} req`}>
+                    <div
+                      className="w-full rounded-sm bg-emerald-500/70 group-hover:bg-emerald-400 transition-colors min-h-[2px]"
+                      style={{ height: `${Math.max((d.requests / maxR) * 100, 3)}%` }}
+                    />
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
+        )}
+
         {/* Edit form */}
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">

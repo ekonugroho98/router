@@ -15,7 +15,7 @@ function monthKey(d = new Date()) {
 
 /**
  * Log a single API request from a customer.
- * Called by multi-tenant middleware AFTER the upstream request completes.
+ * Returns the inserted row ID so the caller can update status later.
  */
 export async function logCustomerUsage({
   customerId,
@@ -26,14 +26,14 @@ export async function logCustomerUsage({
   promptTokens = 0,
   completionTokens = 0,
   cost = 0,
-  status = "success",     // 'success' | 'error' | 'quota_exceeded' | 'auth_fail'
+  status = "success",     // 'pending' | 'success' | 'error' | 'quota_exceeded' | 'auth_fail'
   errorMessage = null,
   latencyMs = null,
 } = {}) {
   if (!customerId) throw new Error("customerId required");
   const db = await getAdapter();
   const now = new Date();
-  db.run(
+  const res = db.run(
     `INSERT INTO customerUsage
       (customerId, apiKeyId, timestamp, dateKey, monthKey, provider, model, connectionId,
        promptTokens, completionTokens, cost, status, errorMessage, latencyMs)
@@ -55,6 +55,23 @@ export async function logCustomerUsage({
       latencyMs,
     ]
   );
+  return res?.lastInsertRowid ?? null;
+}
+
+/**
+ * Update a pending usage row to final status after request completes.
+ */
+export async function updateCustomerUsageStatus(rowId, { status, errorMessage, latencyMs, promptTokens, completionTokens } = {}) {
+  if (!rowId) return;
+  const db = await getAdapter();
+  const sets = ["status = ?"];
+  const vals = [status || "success"];
+  if (errorMessage !== undefined) { sets.push("errorMessage = ?"); vals.push(errorMessage); }
+  if (latencyMs !== undefined) { sets.push("latencyMs = ?"); vals.push(latencyMs); }
+  if (promptTokens !== undefined) { sets.push("promptTokens = ?"); vals.push(promptTokens); }
+  if (completionTokens !== undefined) { sets.push("completionTokens = ?"); vals.push(completionTokens); }
+  vals.push(rowId);
+  db.run(`UPDATE customerUsage SET ${sets.join(", ")} WHERE id = ?`, vals);
 }
 
 /**
@@ -71,7 +88,7 @@ export async function getCustomerUsageToday(customerId) {
             SUM(completionTokens) AS completionTokens,
             SUM(cost) AS cost
      FROM customerUsage
-     WHERE customerId = ? AND dateKey = ? AND status = 'success'`,
+     WHERE customerId = ? AND dateKey = ? AND status IN ('success', 'pending')`,
     [customerId, today]
   );
   return {
@@ -95,7 +112,7 @@ export async function getCustomerUsageThisMonth(customerId) {
             SUM(completionTokens) AS completionTokens,
             SUM(cost) AS cost
      FROM customerUsage
-     WHERE customerId = ? AND monthKey = ? AND status = 'success'`,
+     WHERE customerId = ? AND monthKey = ? AND status IN ('success', 'pending')`,
     [customerId, month]
   );
   return {

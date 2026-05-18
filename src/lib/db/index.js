@@ -81,7 +81,7 @@ export {
 } from "./repos/customerApiKeysRepo.js";
 
 export {
-  logCustomerUsage, getCustomerUsageToday, getCustomerUsageThisMonth,
+  logCustomerUsage, updateCustomerUsageStatus, getCustomerUsageToday, getCustomerUsageThisMonth,
   getCustomerUsageDaily, getCustomerUsageRecent, getCustomersUsageSummary,
   pruneOldUsage,
 } from "./repos/customerUsageRepo.js";
@@ -91,6 +91,10 @@ export {
   deleteCustomerSession, deleteAllCustomerSessions,
   pruneExpiredSessions, listCustomerSessions,
 } from "./repos/customerSessionsRepo.js";
+
+export {
+  logAdminAction, getAuditLog,
+} from "./repos/customerAuditRepo.js";
 
 // Export/import full DB
 export async function exportDb() {

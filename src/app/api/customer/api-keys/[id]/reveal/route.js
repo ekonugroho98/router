@@ -3,11 +3,18 @@
 import { NextResponse } from "next/server";
 import { getCustomerFromRequest } from "@/lib/customer/session";
 import { getCustomerApiKeyById } from "@/lib/db";
+import { rateLimit, getClientIp } from "@/lib/customer/rateLimit";
+
+// 10 reveals per IP per 5 minutes
+const revealLimiter = rateLimit({ windowMs: 5 * 60_000, max: 10 });
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function POST(request, { params }) {
+  const rl = revealLimiter.check(getClientIp(request));
+  if (!rl.ok) return NextResponse.json({ error: rl.message }, { status: 429 });
+
   const customer = await getCustomerFromRequest(request);
   if (!customer) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

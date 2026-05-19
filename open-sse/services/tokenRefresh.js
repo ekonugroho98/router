@@ -561,6 +561,7 @@ async function _getAccessTokenInternal(provider, credentials, log) {
       return await refreshGitHubToken(credentials.refreshToken, log);
 
     case "kiro":
+    case "kiro-pro":
       return await refreshKiroToken(
         credentials.refreshToken,
         credentials.providerSpecificData,

@@ -12,15 +12,18 @@ import { resolveKiroModels } from "open-sse/services/kiroModels.js";
 // Per-provider live model resolvers. Each receives a connection record and
 // returns { models: [{ id, name? }, ...] } | null on failure.
 // Adding a provider here makes /v1/models prefer the live catalog for it.
+const kiroModelResolver = async (conn) => {
+  const result = await resolveKiroModels({
+    accessToken: conn.accessToken,
+    refreshToken: conn.refreshToken,
+    providerSpecificData: conn.providerSpecificData || {}
+  }, { log: console });
+  return result?.models?.length ? { models: result.models } : null;
+};
+
 const LIVE_MODEL_RESOLVERS = {
-  kiro: async (conn) => {
-    const result = await resolveKiroModels({
-      accessToken: conn.accessToken,
-      refreshToken: conn.refreshToken,
-      providerSpecificData: conn.providerSpecificData || {}
-    }, { log: console });
-    return result?.models?.length ? { models: result.models } : null;
-  }
+  kiro: kiroModelResolver,
+  "kiro-pro": kiroModelResolver,
 };
 
 const parseOpenAIStyleModels = (data) => {

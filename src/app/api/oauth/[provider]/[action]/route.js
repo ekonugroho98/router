@@ -93,7 +93,7 @@ export async function GET(request, { params }) {
       const startUrl = searchParams.get("start_url");
       const region = searchParams.get("region");
       const authMethod = searchParams.get("auth_method");
-      const deviceOptions = provider === "kiro"
+      const deviceOptions = (provider === "kiro" || provider === "kiro-pro")
         ? {
             ...(startUrl ? { startUrl } : {}),
             ...(region ? { region } : {}),
@@ -182,7 +182,7 @@ export async function POST(request, { params }) {
       let result;
       if (noPkceProviders.includes(provider)) {
         result = await pollForToken(provider, deviceCode);
-      } else if (provider === "kiro") {
+      } else if (provider === "kiro" || provider === "kiro-pro") {
         // Kiro needs extraData (clientId, clientSecret) from device code response
         result = await pollForToken(provider, deviceCode, null, extraData);
       } else {

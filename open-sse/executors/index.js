@@ -25,6 +25,7 @@ const executors = {
   iflow: new IFlowExecutor(),
   qoder: new QoderExecutor(),
   kiro: new KiroExecutor(),
+  "kiro-pro": new KiroExecutor(), // ADDON: same executor, separate connection pool for pro accounts
   codex: new CodexExecutor(),
   cursor: new CursorExecutor(),
   cu: new CursorExecutor(), // Alias for cursor

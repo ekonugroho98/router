@@ -1112,7 +1112,7 @@ export default function ProviderDetailPage() {
                   {isCompatible ? "Add API Key" : (providerId === "iflow" ? "OAuth" : "Add Connection")}
                 </Button>
                 {/* ADDON: kiro-bulk — bulk auto-add (empty state) */}
-                {providerId === "kiro" && (
+                {(providerId === "kiro" || providerId === "kiro-pro") && (
                   <Button size="sm" icon="rocket_launch" variant="secondary" onClick={() => setShowBulkKiroModal(true)}>
                     Bulk Add
                   </Button>
@@ -1157,7 +1157,7 @@ export default function ProviderDetailPage() {
                     Add
                   </Button>
                   {/* ADDON: kiro-bulk — bulk auto-add Kiro accounts via Camoufox sidecar */}
-                  {providerId === "kiro" && (
+                  {(providerId === "kiro" || providerId === "kiro-pro") && (
                     <Button
                       size="sm"
                       icon="rocket_launch"
@@ -1239,7 +1239,7 @@ export default function ProviderDetailPage() {
       {bulkActionModal}
 
       {/* Modals */}
-      {providerId === "kiro" ? (
+      {(providerId === "kiro" || providerId === "kiro-pro") ? (
         <KiroOAuthWrapper
           isOpen={showOAuthModal}
           providerInfo={providerInfo}
@@ -1294,7 +1294,7 @@ export default function ProviderDetailPage() {
         }}
       />
       {/* ADDON: kiro-bulk */}
-      {providerId === "kiro" && (
+      {(providerId === "kiro" || providerId === "kiro-pro") && (
         <BulkKiroLoginModal
           isOpen={showBulkKiroModal}
           onClose={() => setShowBulkKiroModal(false)}

@@ -144,7 +144,7 @@ async function refreshOAuthToken(connection) {
       return { accessToken: data.access_token, expiresIn: data.expires_in, refreshToken: data.refresh_token || refreshToken };
     }
 
-    if (provider === "kiro") {
+    if (provider === "kiro" || provider === "kiro-pro") {
       const psd = connection.providerSpecificData || {};
       const clientId = psd.clientId || connection.clientId;
       const clientSecret = psd.clientSecret || connection.clientSecret;

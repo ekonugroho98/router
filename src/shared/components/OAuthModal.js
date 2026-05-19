@@ -139,7 +139,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         setStep("waiting");
 
         const deviceCodeUrl = new URL(`/api/oauth/${provider}/device-code`, window.location.origin);
-        if (provider === "kiro" && idcConfig?.startUrl) {
+        if ((provider === "kiro" || provider === "kiro-pro") && idcConfig?.startUrl) {
           deviceCodeUrl.searchParams.set("start_url", idcConfig.startUrl);
           if (idcConfig.region) {
             deviceCodeUrl.searchParams.set("region", idcConfig.region);
@@ -157,7 +157,7 @@ export default function OAuthModal({ isOpen, provider, providerInfo, onSuccess, 
         if (verifyUrl) window.open(verifyUrl, "_blank", "noopener,noreferrer");
 
         // Pass extraData for Kiro (contains _clientId, _clientSecret)
-        const extraData = provider === "kiro"
+        const extraData = (provider === "kiro" || provider === "kiro-pro")
           ? {
               _clientId: data._clientId,
               _clientSecret: data._clientSecret,

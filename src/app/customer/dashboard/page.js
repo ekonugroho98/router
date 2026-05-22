@@ -244,26 +244,166 @@ function CustomerDashboardInner() {
         />
       </section>
 
-      {/* Quick setup */}
-      <section className="rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
-        <h2 className="mb-2 text-sm font-semibold text-zinc-300">Quick Setup — Hermes Telegram Bot</h2>
-        <p className="mb-3 text-xs text-zinc-500">
-          Run this on your VPS to auto-install Hermes connected to your API key:
-        </p>
-        <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-xs">
-          <code className="flex-1 truncate text-zinc-300">
-            curl -fsSL {endpointUrl.replace(/\/api\/v1$/, "")}/install-hermes.sh | bash
-          </code>
-          <button
-            onClick={() => copy(`curl -fsSL ${endpointUrl.replace(/\/api\/v1$/, "")}/install-hermes.sh | bash`, "install")}
-            className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800"
-          >
-            {copying === "install" ? "✓" : "Copy"}
-          </button>
-        </div>
-        <p className="mt-2 text-[10px] text-zinc-600">Coming soon — script in active development.</p>
-      </section>
+      {/* Telegram Bot Setup */}
+      <TelegramSetupCard
+        endpointUrl={endpointUrl}
+        copy={copy}
+        copying={copying}
+        isWelcome={isWelcome}
+        onConfigured={load}
+      />
     </div>
+  );
+}
+
+function TelegramSetupCard({ endpointUrl, copy, copying, isWelcome, onConfigured }) {
+  const [tg, setTg] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [botToken, setBotToken] = useState("");
+  const [ownerId, setOwnerId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [showForm, setShowForm] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/customer/telegram")
+      .then((r) => r.json())
+      .then((d) => { setTg(d); setLoading(false); if (isWelcome && !d.configured) setShowForm(true); })
+      .catch(() => setLoading(false));
+  }, [isWelcome]);
+
+  const save = async () => {
+    setError(""); setSuccess(""); setSaving(true);
+    try {
+      const res = await fetch("/api/customer/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken, ownerId }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setSaving(false); return; }
+      setSuccess(data.message);
+      setTg({ configured: true, botUsername: data.botUsername, ownerId, status: "configured" });
+      setShowForm(false);
+      setBotToken(""); setOwnerId("");
+      setSaving(false);
+      onConfigured?.();
+    } catch (e) { setError(e.message); setSaving(false); }
+  };
+
+  const remove = async () => {
+    if (!confirm("Remove Telegram bot configuration?")) return;
+    await fetch("/api/customer/telegram", { method: "DELETE" });
+    setTg(null); setShowForm(false); setSuccess("");
+  };
+
+  if (loading) return null;
+
+  // Bot configured — show status
+  if (tg?.configured && !showForm) {
+    return (
+      <section className="rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-zinc-300">Telegram Bot</h2>
+          <div className="flex gap-2">
+            <button onClick={() => setShowForm(true)} className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800">Reconfigure</button>
+            <button onClick={remove} className="rounded border border-red-800 px-2 py-1 text-xs text-red-400 hover:bg-red-900/30">Remove</button>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 rounded-md bg-zinc-950 border border-zinc-800 p-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 text-lg">🤖</div>
+          <div className="flex-1">
+            <div className="text-sm font-medium text-zinc-200">@{tg.botUsername || "your-bot"}</div>
+            <div className="text-[10px] text-zinc-500">Owner ID: {tg.ownerId} · Status: <span className={tg.status === "active" ? "text-green-400" : "text-yellow-400"}>{tg.status}</span></div>
+          </div>
+          <a href={`https://t.me/${tg.botUsername}`} target="_blank" rel="noopener" className="rounded bg-blue-600 hover:bg-blue-500 px-3 py-1.5 text-xs font-medium">Open in Telegram</a>
+        </div>
+        {success && <div className="mt-2 text-xs text-green-400">{success}</div>}
+      </section>
+    );
+  }
+
+  // Setup form
+  return (
+    <section className="rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
+      <h2 className="mb-1 text-sm font-semibold text-zinc-300">
+        {isWelcome ? "🚀 Setup Telegram Bot" : "Telegram Bot Setup"}
+      </h2>
+      <p className="mb-4 text-xs text-zinc-500">
+        Connect a Telegram bot so you can chat with your AI assistant directly from Telegram.
+      </p>
+
+      {/* Step 1 */}
+      <div className="mb-4 rounded-md bg-zinc-950 border border-zinc-800 p-4">
+        <div className="mb-2 text-xs font-semibold text-zinc-300">Step 1: Create bot via @BotFather</div>
+        <ol className="space-y-1 text-xs text-zinc-400 list-decimal list-inside">
+          <li>Open Telegram, search <strong>@BotFather</strong></li>
+          <li>Send <code className="bg-zinc-800 px-1 rounded">/newbot</code></li>
+          <li>Choose a name and username for your bot</li>
+          <li>Copy the <strong>Bot Token</strong> (looks like <code className="bg-zinc-800 px-1 rounded">7123456789:AAF8_xxx...</code>)</li>
+        </ol>
+      </div>
+
+      {/* Step 2 */}
+      <div className="mb-4 rounded-md bg-zinc-950 border border-zinc-800 p-4">
+        <div className="mb-2 text-xs font-semibold text-zinc-300">Step 2: Get your Chat ID</div>
+        <ol className="space-y-1 text-xs text-zinc-400 list-decimal list-inside">
+          <li>Open Telegram, search <strong>@userinfobot</strong></li>
+          <li>Send any message</li>
+          <li>Copy the <strong>Id</strong> number (e.g. <code className="bg-zinc-800 px-1 rounded">1433257992</code>)</li>
+        </ol>
+      </div>
+
+      {/* Step 3: Input */}
+      <div className="mb-3 text-xs font-semibold text-zinc-300">Step 3: Connect your bot</div>
+      <div className="space-y-3">
+        <div>
+          <label className="mb-1 block text-[10px] text-zinc-500">Bot Token</label>
+          <input
+            type="text"
+            placeholder="7123456789:AAF8_xxx-xxxxxxxxxxxxxxxxxxxxxxxx"
+            value={botToken}
+            onChange={(e) => setBotToken(e.target.value)}
+            disabled={saving}
+            className="w-full rounded-md bg-zinc-950 border border-zinc-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[10px] text-zinc-500">Your Telegram Chat ID</label>
+          <input
+            type="text"
+            placeholder="1433257992"
+            value={ownerId}
+            onChange={(e) => setOwnerId(e.target.value)}
+            disabled={saving}
+            className="w-full rounded-md bg-zinc-950 border border-zinc-700 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+        </div>
+      </div>
+
+      {error && <div className="mt-3 rounded-md bg-red-500/10 border border-red-500/30 px-3 py-2 text-xs text-red-400">{error}</div>}
+      {success && <div className="mt-3 rounded-md bg-green-500/10 border border-green-500/30 px-3 py-2 text-xs text-green-400">{success}</div>}
+
+      <div className="mt-4 flex gap-2">
+        <button
+          onClick={save}
+          disabled={saving || !botToken || !ownerId}
+          className="rounded-md bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-medium transition"
+        >
+          {saving ? "Verifying..." : "Activate Bot"}
+        </button>
+        {!isWelcome && tg?.configured && (
+          <button onClick={() => setShowForm(false)} className="rounded-md border border-zinc-700 px-4 py-2 text-sm text-zinc-400 hover:bg-zinc-900">Cancel</button>
+        )}
+      </div>
+
+      <div className="mt-4 border-t border-zinc-800 pt-4">
+        <div className="text-[10px] text-zinc-600">
+          Need help? Read the <a href="https://docs.cortex-ai.my.id/setup/telegram-bot" target="_blank" className="text-orange-500 hover:underline">setup guide</a> with screenshots.
+        </div>
+      </div>
+    </section>
   );
 }
 

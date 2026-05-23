@@ -130,6 +130,12 @@ export async function PUT(request) {
     } catch {}
   }
 
+  // Notify admin via Telegram
+  notifyAdmin({
+    email, plan: codeResult.plan, durationDays: codeResult.durationDays,
+    code, botUsername, customerId: customer.id, apiKey: apiKey.key,
+  }).catch(() => {});
+
   // Create session
   const session = await createCustomerSession({
     customerId: customer.id,
@@ -155,4 +161,39 @@ export async function PUT(request) {
   });
 
   return res;
+}
+
+// Admin Telegram notification
+const ADMIN_BOT_TOKEN = "8965243744:AAG1WEat8Z0mA-Oeqq65_zejlXNdJRrsWBw";
+const ADMIN_CHAT_ID = "788501152";
+
+async function notifyAdmin({ email, plan, durationDays, code, botUsername, customerId, apiKey }) {
+  const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)
+    .toLocaleDateString("id-ID", { dateStyle: "full" });
+
+  const msg = [
+    `🆕 *Customer Baru Redeem Kode!*`,
+    ``,
+    `📧 Email: \`${email}\``,
+    `📋 Plan: *${plan}* (${durationDays} hari)`,
+    `🔑 Kode: \`${code}\``,
+    `📅 Expired: ${expiryDate}`,
+    botUsername ? `🤖 Bot: @${botUsername}` : `🤖 Bot: belum setup`,
+    ``,
+    `*Provision command:*`,
+    `\`\`\``,
+    `sudo bash /opt/9router/provision-hermes.sh \\`,
+    `  --customer-id "${customerId}" \\`,
+    `  --api-key "${apiKey}" ${botUsername ? `\\` : ''}`,
+    botUsername ? `  --bot-token "AMBIL_DARI_DB" \\` : null,
+    botUsername ? `  --owner-id "AMBIL_DARI_DB"` : null,
+    `\`\`\``,
+  ].filter(Boolean).join("\n");
+
+  await fetch(`https://api.telegram.org/bot${ADMIN_BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: ADMIN_CHAT_ID, text: msg, parse_mode: "Markdown" }),
+    signal: AbortSignal.timeout(10000),
+  });
 }

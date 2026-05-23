@@ -67,6 +67,9 @@ export async function POST(request) {
     name: "default",
   });
 
+  // Notify admin
+  notifyAdminSignup(email, customer.plan).catch(() => {});
+
   // Create session + cookie
   const userAgent = request.headers.get("user-agent") || null;
   const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
@@ -103,4 +106,14 @@ export async function POST(request) {
   });
 
   return res;
+}
+
+async function notifyAdminSignup(email, plan) {
+  const msg = `📝 *Signup Baru (tanpa kode)*\n\n📧 Email: \`${email}\`\n📋 Plan: ${plan}`;
+  await fetch("https://api.telegram.org/bot8965243744:AAG1WEat8Z0mA-Oeqq65_zejlXNdJRrsWBw/sendMessage", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: "788501152", text: msg, parse_mode: "Markdown" }),
+    signal: AbortSignal.timeout(10000),
+  });
 }

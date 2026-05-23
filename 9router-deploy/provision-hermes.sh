@@ -105,7 +105,17 @@ chown hermes:hermes /home/hermes/.hermes/config.yaml
 if [ -n "$BOT_TOKEN" ] && [ -n "$OWNER_ID" ]; then
   log "Configuring Telegram bot..."
 
-  # Inline env vars in systemd service (most reliable method)
+  # Write .env file (Hermes reads via python-dotenv)
+  incus exec "$CONTAINER_NAME" -- bash -c "
+cat > /home/hermes/.hermes/.env << ENVEOF
+TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+TELEGRAM_ALLOWED_USERS=${OWNER_ID}
+TELEGRAM_HOME_CHANNEL=${OWNER_ID}
+ENVEOF
+chown hermes:hermes /home/hermes/.hermes/.env
+"
+
+  # Also inline env vars in systemd service
   incus exec "$CONTAINER_NAME" -- bash -c "
 cat > /etc/systemd/system/hermes-gateway.service << EOF
 [Unit]
@@ -143,8 +153,8 @@ HERMES_STATUS=$(incus exec "$CONTAINER_NAME" -- systemctl is-active hermes-gatew
 # Check if Telegram connected
 TG_STATUS="not configured"
 if [ -n "$BOT_TOKEN" ]; then
-  TG_CONNECTED=$(incus exec "$CONTAINER_NAME" -- grep -c "telegram connected" /home/hermes/.hermes/logs/gateway.log 2>/dev/null || echo "0")
-  if [ "$TG_CONNECTED" -gt 0 ]; then
+  TG_CONNECTED=$(incus exec "$CONTAINER_NAME" -- grep -c "telegram connected" /home/hermes/.hermes/logs/gateway.log 2>/dev/null | tail -1 || echo "0")
+  if [ "${TG_CONNECTED:-0}" -gt 0 ] 2>/dev/null; then
     TG_STATUS="connected"
   else
     TG_STATUS="starting..."

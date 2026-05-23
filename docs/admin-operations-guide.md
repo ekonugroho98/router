@@ -4,24 +4,41 @@ Panduan lengkap untuk admin mengelola customer, dari order masuk sampai containe
 
 ---
 
-## Flow Lengkap (Manual)
+## Flow Overview
 
+### Automated Flow (Default)
 ```
-1. Customer beli di lynk.id
-2. Kamu terima notif order
-3. Generate kode aktivasi
-4. Kirim kode ke customer via DM
-5. Customer redeem kode di web → akun + API key dibuat
-6. Customer input Telegram bot token + chat ID
-7. Kamu provision Incus container di VPS
-8. Bot aktif!
+1. Admin generate kode aktivasi (free/pro)
+2. Customer beli di lynk.id → admin kirim kode via DM
+3. Customer buka /customer/activate → input kode + buat akun + setup Telegram
+4. System otomatis:
+   a. Buat akun + API key di DB
+   b. Set provisionStatus = "pending"
+   c. Cron (tiap 1 menit) detect pending
+   d. Auto-create Incus container dari template v2
+   e. Inject config (API key, Telegram token, model, streaming)
+   f. Start Hermes gateway
+   g. Update provisionStatus = "active" + simpan SSH password
+   h. Kirim notif ke admin Telegram
+5. Customer buka bot Telegram → /sethome → chat!
+```
+Max delay dari redeem sampai bot aktif: **~1-2 menit**.
+
+### Manual Flow (Fallback)
+Kalau auto-provision gagal, admin bisa provision manual:
+```bash
+sudo bash /opt/9router/provision-hermes.sh \
+  --customer-id "UUID" \
+  --api-key "sk-cortex-xxx" \
+  --bot-token "7123:AAA..." \
+  --owner-id "123456"
 ```
 
 ---
 
 ## Step 1: Generate Kode Aktivasi
 
-### Login admin dulu (sekali aja, cookie valid beberapa jam)
+### Login admin (sekali aja, cookie valid beberapa jam)
 ```bash
 ssh karaya@20.24.192.82
 
@@ -30,21 +47,21 @@ curl -s -c /tmp/adm.txt -X POST http://127.0.0.1:20128/api/auth/login \
   -d '{"password":"lFoGDkEVyQiBdhPJ"}'
 ```
 
-### Generate kode Free Trial (3 hari)
+### Generate kode Free Trial (3 hari, 100 req/hari)
 ```bash
 curl -s -b /tmp/adm.txt -X POST http://127.0.0.1:20128/api/admin/redeem-codes \
   -H "Content-Type: application/json" \
   -d '{
-    "count": 1,
+    "count": 5,
     "plan": "free",
     "durationDays": 3,
     "quotaDailyLimit": 100,
     "quotaMonthlyLimit": 3000,
-    "label": "free trial - [NAMA CUSTOMER]"
+    "label": "free trial batch"
   }'
 ```
 
-### Generate kode Pro Plan (30 hari)
+### Generate kode Pro Plan (30 hari, 1000 req/hari)
 ```bash
 curl -s -b /tmp/adm.txt -X POST http://127.0.0.1:20128/api/admin/redeem-codes \
   -H "Content-Type: application/json" \
@@ -58,16 +75,16 @@ curl -s -b /tmp/adm.txt -X POST http://127.0.0.1:20128/api/admin/redeem-codes \
   }'
 ```
 
-### Generate kode custom durasi
+### Durasi custom
 ```bash
 # 7 hari
--d '{"plan": "pro", "durationDays": 7, ...}'
+"durationDays": 7
 
 # 14 hari
--d '{"plan": "pro", "durationDays": 14, ...}'
+"durationDays": 14
 
 # 1 tahun
--d '{"plan": "enterprise", "durationDays": 365, ...}'
+"durationDays": 365
 ```
 
 ### Lihat semua kode
@@ -79,125 +96,103 @@ curl -s -b /tmp/adm.txt http://127.0.0.1:20128/api/admin/redeem-codes | python3 
 
 ## Step 2: Kirim Kode ke Customer
 
-Copy template DM dari docs/lynk-id-products.md, ganti CORTEX-XXXX-XXXX dengan kode yang di-generate.
+Setelah customer beli di lynk.id, kirim kode via DM (WhatsApp/Telegram):
 
----
+### Template pesan Free Trial
+```
+Halo! 👋
 
-## Step 3: Tunggu Customer Redeem
+Terima kasih sudah order Cortex AI Free Trial.
 
-Customer buka: https://9router.cortex-ai.my.id/customer/activate
-- Masukkan kode → buat akun → (optional) setup Telegram
+Ini kode aktivasi kamu:
+🔑 CORTEX-XXXX-XXXX
 
-Setelah customer selesai redeem, kamu bisa cek di admin:
-```bash
-curl -s -b /tmp/adm.txt http://127.0.0.1:20128/api/admin/customers | python3 -c "
-import sys,json
-d = json.load(sys.stdin)
-for c in d['customers']:
-    meta = c.get('metadata') or {}
-    print(f\"{c['email']:30} plan={c['plan']:8} expires={meta.get('expiresAt','N/A')[:10]}\")
-"
+Cara pakai:
+1. Buka: https://9router.cortex-ai.my.id/customer/activate
+2. Masukkan kode di atas
+3. Buat akun (email + password)
+4. Setup bot Telegram (ikuti panduan di halaman)
+
+Panduan lengkap: https://docs.cortex-ai.my.id
+
+Aktif selama 3 hari sejak aktivasi. Enjoy! 🚀
+```
+
+### Template pesan Pro Plan
+```
+Halo! 👋
+
+Pembayaran Cortex AI Pro Plan sudah dikonfirmasi. Terima kasih!
+
+Ini kode aktivasi kamu:
+🔑 CORTEX-XXXX-XXXX
+
+Cara pakai:
+1. Buka: https://9router.cortex-ai.my.id/customer/activate
+2. Masukkan kode → buat akun → setup Telegram bot
+3. Tunggu ~1 menit, bot otomatis aktif!
+
+Yang kamu dapat:
+- Semua model AI (Claude, Gemini, GPT)
+- 1.000 request/hari
+- Web automation + SSH access
+- Aktif 30 hari
+
+Panduan: https://docs.cortex-ai.my.id
+
+Enjoy! 🚀
 ```
 
 ---
 
-## Step 4: Provision Incus Container
+## Step 3: Customer Redeem (Otomatis)
 
-Setelah customer redeem dan kamu lihat datanya di admin, provision container:
+Customer buka https://9router.cortex-ai.my.id/customer/activate
 
-### Cari customer ID dan API key
-```bash
-# Dari admin customers list, cari customer yang baru redeem
-curl -s -b /tmp/adm.txt http://127.0.0.1:20128/api/admin/customers | python3 -c "
-import sys,json
-d = json.load(sys.stdin)
-for c in d['customers']:
-    meta = c.get('metadata') or {}
-    tg = meta.get('telegram', {})
-    print(f\"ID:    {c['id']}\")
-    print(f\"Email: {c['email']}\")
-    print(f\"Plan:  {c['plan']}\")
-    print(f\"Bot:   {tg.get('botToken','N/A')[:15]}...\")
-    print(f\"Owner: {tg.get('ownerId','N/A')}\")
-    print()
-"
-```
+Dia akan:
+1. Input kode → system validasi
+2. Buat akun (email + password)
+3. Input Telegram Bot Token + Chat ID (optional, bisa nanti)
+4. Klik "Buat Akun & Aktifkan"
 
-### Cari API key customer
-```bash
-CUST_ID="paste-customer-id-di-sini"
+Setelah ini terjadi otomatis:
+- Akun + API key dibuat di database
+- provisionStatus = "pending" di customer metadata
+- Cron `/opt/9router/auto-provision.sh` jalan tiap menit
+- Detect customer pending → launch Incus container
+- Container start + Hermes gateway aktif
+- provisionStatus = "active"
+- Admin terima notif Telegram
 
-curl -s -b /tmp/adm.txt "http://127.0.0.1:20128/api/admin/customers/$CUST_ID" | python3 -c "
-import sys,json
-d = json.load(sys.stdin)
-for k in d.get('apiKeys',[]):
-    print(f\"Key: {k['keyMasked']}  Active: {k['isActive']}\")
-meta = d['customer'].get('metadata') or {}
-tg = meta.get('telegram', {})
-print(f\"Bot Token: {tg.get('botToken','N/A')}\")
-print(f\"Owner ID: {tg.get('ownerId','N/A')}\")
-"
-```
-
-Note: API key di admin cuma masked. Kalau perlu full key, ambil dari DB:
-```bash
-sudo sqlite3 /var/lib/9router-data/db/data.sqlite \
-  "SELECT key FROM customerApiKeys WHERE customerId='$CUST_ID' AND isActive=1"
-```
-
-### Provision container
-```bash
-# Ambil data customer
-CUST_ID="paste-id"
-API_KEY="sk-cortex-paste-full-key"
-BOT_TOKEN="7123456789:AAA..."  # dari customer metadata.telegram.botToken
-OWNER_ID="1433257992"           # dari customer metadata.telegram.ownerId
-
-# Jalankan provisioning
-sudo bash /opt/9router/provision-hermes.sh \
-  --customer-id "$CUST_ID" \
-  --api-key "$API_KEY" \
-  --bot-token "$BOT_TOKEN" \
-  --owner-id "$OWNER_ID"
-```
-
-### Output yang muncul
-```
-[+] Provisioning container: hermes-87d2f06b
-[+] Launching from template: hermes-template-v1
-[+] Setting up network...
-[+] Setting SSH password...
-[+] Injecting config...
-[+] Configuring Telegram bot...
-[+] Starting Hermes gateway...
-[+] Health check...
-
-============================================================
-[+] DONE! Container provisioned.
-============================================================
-
-  Container:    hermes-87d2f06b
-  SSH Password: aB3xK9mPq2wZ
-  Status:       active
-```
-
-### Simpan SSH password — kirim ke customer kalau Pro plan.
+**Admin gak perlu ngapa-ngapain.** Tinggal tunggu notif.
 
 ---
 
-## Step 5: Verifikasi
+## Step 4: Verifikasi (Optional)
 
+### Cek auto-provision log
 ```bash
-# Cek container jalan
+tail -20 /var/log/hermes-provision.log
+```
+
+### Cek semua containers
+```bash
 sudo incus list
+```
 
-# Cek Hermes status di container
-sudo incus exec hermes-XXXXXXXX -- systemctl status hermes-gateway
+### Cek customer di database
+```bash
+curl -s -b /tmp/adm.txt http://127.0.0.1:20128/api/admin/customers | python3 -c "
+import sys,json
+d = json.load(sys.stdin)
+for c in d['customers']:
+    meta = c.get('metadata') or {}
+    print(f\"{c['email']:30} plan={c['plan']:5} status={meta.get('provisionStatus','N/A'):12} container={meta.get('container','N/A')}\")"
+```
 
-# Lihat logs
-sudo incus exec hermes-XXXXXXXX -- tail -20 /home/hermes/.hermes/logs/agent.log
-
-# Test bot respond (minta customer kirim /start ke bot-nya)
+### Cek Hermes status di container customer
+```bash
+sudo incus exec hermes-XXXXXXXX -- tail -5 /home/hermes/.hermes/logs/gateway.log
 ```
 
 ---
@@ -211,12 +206,12 @@ sudo incus list
 
 ### Restart Hermes di container customer
 ```bash
-sudo incus exec hermes-XXXXXXXX -- systemctl restart hermes-gateway
+sudo incus exec hermes-XXXXXXXX -- bash -c 'pkill -9 -f hermes_cli; sleep 2; systemctl start hermes-gateway'
 ```
 
 ### Lihat logs customer
 ```bash
-sudo incus exec hermes-XXXXXXXX -- tail -50 /home/hermes/.hermes/logs/agent.log
+sudo incus exec hermes-XXXXXXXX -- tail -50 /home/hermes/.hermes/logs/gateway.log
 ```
 
 ### Suspend customer (billing/abuse)
@@ -237,10 +232,10 @@ sudo incus delete hermes-XXXXXXXX
 
 ### Ganti model customer
 ```bash
-sudo incus exec hermes-XXXXXXXX -- su - hermes -c "
-  sed -i 's/default: .*/default: kr\/claude-sonnet-4.5/' ~/.hermes/config.yaml
+sudo incus exec hermes-XXXXXXXX -- bash -c "
+  sed -i 's/default: .*/default: kr\/claude-sonnet-4.5/' /home/hermes/.hermes/config.yaml
+  pkill -9 -f hermes_cli; sleep 2; systemctl start hermes-gateway
 "
-sudo incus exec hermes-XXXXXXXX -- systemctl restart hermes-gateway
 ```
 
 ### Reset SSH password customer
@@ -254,7 +249,7 @@ echo "New password: $NEW_PASS"
 
 ## Monitoring
 
-### CPU & RAM usage semua containers
+### CPU & RAM semua containers
 ```bash
 sudo incus list -c n,s,4,m
 ```
@@ -262,11 +257,11 @@ sudo incus list -c n,s,4,m
 ### Disk usage
 ```bash
 df -h /
-sudo du -sh /var/lib/incus/storage-pools/default/containers/*/
 ```
 
-### Cek expired customers (manual, cron juga jalan tiap jam)
+### Cek expired customers
 ```bash
+# Manual check (cron juga jalan tiap jam)
 sudo bash /opt/9router/check-expiry.sh
 ```
 
@@ -275,41 +270,83 @@ sudo bash /opt/9router/check-expiry.sh
 tail -20 /var/log/hermes-expiry.log
 ```
 
+### Lihat provision log
+```bash
+tail -20 /var/log/hermes-provision.log
+```
+
 ---
 
 ## Troubleshooting
 
+### Auto-provision gak jalan
+```bash
+# Cek cron running
+sudo crontab -l | grep provision
+
+# Cek log
+tail -20 /var/log/hermes-provision.log
+
+# Cek pending customers di DB
+sudo sqlite3 /var/lib/9router-data/db/data.sqlite \
+  "SELECT email, json_extract(metadata, '$.provisionStatus') FROM customers WHERE json_extract(metadata, '$.provisionStatus') = 'pending'"
+
+# Manual trigger
+sudo bash /opt/9router/auto-provision.sh
+```
+
 ### Container gak bisa internet
 ```bash
+# Cek iptables
+sudo iptables -L FORWARD -n | head -5
+# Harus ada ACCEPT untuk incusbr0
+
+# Re-add rules
+sudo iptables -A FORWARD -i incusbr0 -j ACCEPT
+sudo iptables -A FORWARD -o incusbr0 -j ACCEPT
+sudo iptables -t nat -A POSTROUTING -s 10.10.10.0/24 ! -d 10.10.10.0/24 -j MASQUERADE
+
+# Fix DNS di container
 sudo incus exec hermes-XXXXXXXX -- bash -c '
   echo nameserver 8.8.8.8 > /etc/resolv.conf
-  ip addr add 10.10.10.XXX/24 dev eth0 2>/dev/null
-  ip route add default via 10.10.10.1 2>/dev/null
-  ping -c1 google.com
+  echo nameserver 1.1.1.1 >> /etc/resolv.conf
 '
 ```
 
-### Hermes gak start
+### Hermes gak start di container
 ```bash
+# Cek logs
 sudo incus exec hermes-XXXXXXXX -- journalctl -u hermes-gateway --no-pager | tail -20
+
+# Cek env vars loaded
+sudo incus exec hermes-XXXXXXXX -- cat /etc/systemd/system/hermes-gateway.service
+
+# Manual restart
+sudo incus exec hermes-XXXXXXXX -- bash -c 'pkill -9 -f hermes_cli; sleep 2; systemctl daemon-reload; systemctl start hermes-gateway'
 ```
 
-### Container gak bisa reach 9router
+### Telegram bot gak reply
 ```bash
-sudo incus exec hermes-XXXXXXXX -- curl -s https://9router.cortex-ai.my.id/api/health
+# Cek gateway connected
+sudo incus exec hermes-XXXXXXXX -- grep "telegram connected" /home/hermes/.hermes/logs/gateway.log
+
+# Cek .env ada
+sudo incus exec hermes-XXXXXXXX -- cat /home/hermes/.hermes/.env
+
+# Test bot token valid
+TOKEN=$(sudo incus exec hermes-XXXXXXXX -- grep TELEGRAM_BOT_TOKEN /home/hermes/.hermes/.env | cut -d= -f2)
+curl -s "https://api.telegram.org/bot${TOKEN}/getMe"
 ```
-Kalau gagal, cek iptables di host:
-```bash
-sudo iptables -L FORWARD -n | head -10
-# Harus ada ACCEPT untuk incusbr0
-```
+
+### Customer minta home channel
+Suruh customer kirim `/sethome` ke bot mereka. Ini one-time setup.
 
 ### Disk penuh
 ```bash
 # Cek
 df -h /
 
-# Hapus container yang sudah expired
+# Hapus container expired
 sudo incus list
 sudo incus delete hermes-expired-xxx --force
 
@@ -320,16 +357,44 @@ sudo incus image delete FINGERPRINT
 
 ---
 
-## TODO: Full Otomatis (Belum Diimplementasi)
+## Cron Jobs Active
 
-Nanti kalau mau full otomatis, yang perlu dibangun:
+| Cron | Script | Interval | Fungsi |
+|------|--------|----------|--------|
+| auto-provision | `/opt/9router/auto-provision.sh` | Tiap 1 menit | Provision container baru |
+| check-expiry | `/opt/9router/check-expiry.sh` | Tiap 1 jam | Stop container expired |
 
-1. API activation (PUT /api/customer/activate) auto-call provisioning script
-2. Webhook dari lynk.id → auto-generate kode → auto-email ke customer
-3. Customer dashboard show container status (running/stopped/provisioning)
-4. Admin dashboard: container list, 1-click suspend/resume/delete
-5. Auto-renewal: customer bayar lagi → extend expiresAt + restart container
-6. Usage dashboard per container (CPU, RAM, disk)
+Cek cron:
+```bash
+sudo crontab -l
+```
+
+---
+
+## Architecture
+
+```
+VPS Host (karaya@20.24.192.82)
+├── Docker
+│   └── 9router (port 20128)
+│       ├── Dashboard: /dashboard
+│       ├── Customer pages: /customer/*
+│       ├── API: /api/v1/*
+│       └── Admin: /api/admin/*
+│
+├── Incus
+│   ├── hermes-XXXXXXXX (customer 1)
+│   │   └── Hermes + Telegram bot + CloakBrowser
+│   ├── hermes-YYYYYYYY (customer 2)
+│   └── ...
+│
+├── Cron
+│   ├── auto-provision.sh (tiap menit)
+│   └── check-expiry.sh (tiap jam)
+│
+└── Sidecar
+    └── kiro-bulk (port 9100) — admin bulk add accounts
+```
 
 ---
 
@@ -337,14 +402,16 @@ Nanti kalau mau full otomatis, yang perlu dibangun:
 
 | Task | Command |
 |------|---------|
-| Login admin | `curl -c /tmp/adm.txt -X POST .../api/auth/login -d '{"password":"..."}'` |
 | Generate kode | `curl -b /tmp/adm.txt -X POST .../api/admin/redeem-codes -d '{...}'` |
 | List customers | `curl -b /tmp/adm.txt .../api/admin/customers` |
-| Provision | `sudo bash /opt/9router/provision-hermes.sh --customer-id X --api-key X` |
 | List containers | `sudo incus list` |
-| Restart hermes | `sudo incus exec hermes-XXX -- systemctl restart hermes-gateway` |
-| View logs | `sudo incus exec hermes-XXX -- tail -f /home/hermes/.hermes/logs/agent.log` |
+| Provision log | `tail -f /var/log/hermes-provision.log` |
+| Expiry log | `tail -f /var/log/hermes-expiry.log` |
+| Restart hermes | `sudo incus exec hermes-XXX -- bash -c 'pkill -9 -f hermes_cli; sleep 2; systemctl start hermes-gateway'` |
+| View logs | `sudo incus exec hermes-XXX -- tail -f /home/hermes/.hermes/logs/gateway.log` |
 | Suspend | `sudo incus stop hermes-XXX` |
 | Resume | `sudo incus start hermes-XXX` |
 | Delete | `sudo incus delete hermes-XXX --force` |
+| Manual provision | `sudo bash /opt/9router/provision-hermes.sh --customer-id X --api-key X --bot-token X --owner-id X` |
 | Check expiry | `sudo bash /opt/9router/check-expiry.sh` |
+| Force auto-provision | `sudo bash /opt/9router/auto-provision.sh` |

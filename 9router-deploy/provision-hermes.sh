@@ -8,11 +8,7 @@
 #     --api-key "sk-cortex-xxx" \
 #     --bot-token "7123:AAA..." \
 #     --owner-id "1433257992" \
-#     --model "gc/gemini-2.5-flash"
-#
-# Or via env vars:
-#   CUSTOMER_ID=uuid API_KEY=sk-cortex-xxx BOT_TOKEN=7123:AAA... \
-#   OWNER_ID=1433 sudo -E bash provision-hermes.sh
+#     --model "auto"
 # =====================================================
 set -euo pipefail
 
@@ -25,10 +21,10 @@ CUSTOMER_ID="${CUSTOMER_ID:-}"
 API_KEY="${API_KEY:-}"
 BOT_TOKEN="${BOT_TOKEN:-}"
 OWNER_ID="${OWNER_ID:-}"
-MODEL="${MODEL:-gc/gemini-2.5-flash}"
+MODEL="${MODEL:-auto}"
 ROUTER_URL="${ROUTER_URL:-https://9router.cortex-ai.my.id/v1}"
 SSH_PASSWORD="${SSH_PASSWORD:-}"
-TEMPLATE="${TEMPLATE:-hermes-template-v1}"
+TEMPLATE="${TEMPLATE:-hermes-template-v2}"
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -63,7 +59,6 @@ sleep 5
 
 # ── 2. Setup networking ──────────────────────────────────────────────
 log "Setting up network..."
-# Assign sequential IP based on existing containers
 EXISTING=$(incus list -f csv -c n | grep hermes- | wc -l)
 IP_SUFFIX=$((100 + EXISTING))
 incus exec "$CONTAINER_NAME" -- bash -c "
@@ -79,9 +74,8 @@ incus exec "$CONTAINER_NAME" -- bash -c "echo 'hermes:${SSH_PASSWORD}' | chpassw
 
 # ── 4. Inject Hermes config ──────────────────────────────────────────
 log "Injecting config (model: $MODEL)..."
-incus exec "$CONTAINER_NAME" -- su - hermes -c "
-mkdir -p ~/.hermes
-cat > ~/.hermes/config.yaml << YAML
+incus exec "$CONTAINER_NAME" -- bash -c "
+cat > /home/hermes/.hermes/config.yaml << YAML
 model:
   default: ${MODEL}
   provider: custom
@@ -92,42 +86,70 @@ agent:
   image_input_mode: native
   api_max_retries: 2
   gateway_timeout: 1800
+display:
+  streaming: true
+  compact: false
+  personality: kawaii
 auxiliary:
   vision:
     provider: custom
     model: gc/gemini-2.5-flash
     base_url: ${ROUTER_URL}
     api_key: ${API_KEY}
+streaming: true
 YAML
+chown hermes:hermes /home/hermes/.hermes/config.yaml
 "
 
-# ── 5. Setup Telegram bot (if provided) ──────────────────────────────
+# ── 5. Setup Telegram bot ────────────────────────────────────────────
 if [ -n "$BOT_TOKEN" ] && [ -n "$OWNER_ID" ]; then
   log "Configuring Telegram bot..."
-  incus exec "$CONTAINER_NAME" -- su - hermes -c "
-    cd ~/.hermes/hermes-agent
-    source venv/bin/activate
-    python -c \"
-from hermes_cli.config import load_config, save_config
-cfg = load_config()
-cfg.setdefault('gateway', {})
-cfg['gateway']['platform'] = 'telegram'
-cfg['gateway']['telegram_token'] = '${BOT_TOKEN}'
-cfg['gateway']['telegram_owner_id'] = '${OWNER_ID}'
-save_config(cfg)
-print('Telegram configured')
-\" 2>/dev/null || echo 'Manual telegram config needed'
-  "
+
+  # Inline env vars in systemd service (most reliable method)
+  incus exec "$CONTAINER_NAME" -- bash -c "
+cat > /etc/systemd/system/hermes-gateway.service << EOF
+[Unit]
+Description=Hermes Agent Gateway
+After=network.target
+
+[Service]
+User=hermes
+WorkingDirectory=/home/hermes/.hermes/hermes-agent
+Environment=HOME=/home/hermes
+Environment=TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
+Environment=TELEGRAM_ALLOWED_USERS=${OWNER_ID}
+Environment=TELEGRAM_HOME_CHANNEL=${OWNER_ID}
+ExecStart=/home/hermes/.hermes/hermes-agent/venv/bin/python -m hermes_cli.main gateway run
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+"
+  log "Telegram configured"
 fi
 
 # ── 6. Start Hermes gateway ──────────────────────────────────────────
 log "Starting Hermes gateway..."
 incus exec "$CONTAINER_NAME" -- systemctl start hermes-gateway
-sleep 3
+sleep 8
 
 # ── 7. Health check ──────────────────────────────────────────────────
 log "Health check..."
 HERMES_STATUS=$(incus exec "$CONTAINER_NAME" -- systemctl is-active hermes-gateway 2>/dev/null || echo "failed")
+
+# Check if Telegram connected
+TG_STATUS="not configured"
+if [ -n "$BOT_TOKEN" ]; then
+  TG_CONNECTED=$(incus exec "$CONTAINER_NAME" -- grep -c "telegram connected" /home/hermes/.hermes/logs/gateway.log 2>/dev/null || echo "0")
+  if [ "$TG_CONNECTED" -gt 0 ]; then
+    TG_STATUS="connected"
+  else
+    TG_STATUS="starting..."
+  fi
+fi
 
 # ── 8. Output ────────────────────────────────────────────────────────
 echo
@@ -142,17 +164,15 @@ echo
 echo "  Container:    $CONTAINER_NAME"
 echo "  Customer ID:  $CUSTOMER_ID"
 echo "  IP:           10.10.10.${IP_SUFFIX}"
-echo "  SSH:          ssh hermes@<host> -p <port>"
 echo "  SSH Password: $SSH_PASSWORD"
 echo "  API Key:      ${API_KEY:0:15}..."
 echo "  Model:        $MODEL"
-echo "  Bot Token:    ${BOT_TOKEN:+configured}"
+echo "  Telegram:     $TG_STATUS"
 echo "  Status:       $HERMES_STATUS"
 echo
 echo "  Manage:"
 echo "    incus exec $CONTAINER_NAME -- hermes status"
 echo "    incus exec $CONTAINER_NAME -- hermes logs"
-echo "    incus exec $CONTAINER_NAME -- hermes restart"
 echo "    incus stop $CONTAINER_NAME   # suspend"
 echo "    incus start $CONTAINER_NAME  # resume"
 echo "    incus delete $CONTAINER_NAME --force  # destroy"

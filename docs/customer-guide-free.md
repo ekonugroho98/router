@@ -1,6 +1,3 @@
-<!-- Convert to PDF: buka di browser lalu Print → Save as PDF -->
-<!-- Font: clean sans-serif, warna orange #FF6B35 untuk accent -->
-
 # Cortex AI — Quick Start Guide
 ### Free Trial (3 Hari)
 
@@ -14,21 +11,20 @@ Selamat datang di Cortex AI! Kamu sekarang punya AI assistant pribadi yang bisa 
 
 Setelah order, kode aktivasi dikirim oleh admin via WhatsApp/Telegram.
 
-Format kode: `CORTEX-XXXX-XXXX`
+Format kode: CORTEX-XXXX-XXXX
 
-Belum terima kode? Chat admin: **@ekonugroho98** (Telegram)
+Belum terima kode? Chat admin: +6281519624321 (WA)
 
 ---
 
 ## Step 2: Aktivasi Akun
 
 1. Buka link ini di browser:
-
-   **https://9router.cortex-ai.my.id/customer/activate**
+   https://9router.cortex-ai.my.id/customer/activate
 
 2. Masukkan kode aktivasi
 3. Isi email + password (untuk login di dashboard nanti)
-4. Klik **"Buat Akun & Aktifkan"**
+4. Klik "Buat Akun & Aktifkan"
 
 ---
 
@@ -36,75 +32,71 @@ Belum terima kode? Chat admin: **@ekonugroho98** (Telegram)
 
 Di halaman aktivasi, kamu akan diminta setup Telegram bot:
 
-**A. Buat Bot:**
-1. Buka Telegram → cari **@BotFather**
-2. Kirim `/newbot`
-3. Ikuti instruksi, copy **Bot Token**
+A. Buat Bot:
+   1. Buka Telegram, cari @BotFather
+   2. Kirim /newbot
+   3. Ikuti instruksi, copy Bot Token
 
-**B. Dapatkan Chat ID:**
-1. Buka Telegram → cari **@userinfobot**
-2. Kirim pesan apa aja
-3. Copy angka **Id** yang muncul
+B. Dapatkan Chat ID:
+   1. Buka Telegram, cari @userinfobot
+   2. Kirim pesan apa aja
+   3. Copy angka Id yang muncul
 
-**C. Paste di halaman aktivasi:**
-- Bot Token → paste
-- Chat ID → paste
-- Klik Aktifkan
+C. Paste di halaman aktivasi:
+   - Bot Token → paste
+   - Chat ID → paste
+   - Klik Aktifkan
 
 ---
 
 ## Step 4: Mulai Chat!
 
 1. Buka bot kamu di Telegram
-2. Kirim `/start`
-3. Coba kirim: **"Halo, siapa kamu?"**
+2. Kirim /start
+3. Coba kirim: "Halo, siapa kamu?"
 
-Bot akan reply sebagai AI assistant. Selamat! 🎉
+Bot akan reply sebagai AI assistant. Selamat!
 
 ---
 
 ## Apa yang Bisa Dilakukan?
 
-| Kirim ini | Bot akan |
-|-----------|----------|
-| Pertanyaan apa aja | Jawab dengan AI |
-| Foto/screenshot | Analisis gambar |
-| "Buatkan script Python..." | Coding otomatis |
-| "Jelaskan konsep X" | Penjelasan detail |
+- Pertanyaan apa aja → Bot jawab dengan AI
+- Kirim foto/screenshot → Bot analisis gambar
+- "Buatkan script Python..." → Bot coding otomatis
+- "Jelaskan konsep X" → Bot kasih penjelasan detail
 
 ---
 
 ## Info Akun Kamu
 
-| | |
-|---|---|
-| Plan | Free Trial |
-| Durasi | 3 hari sejak aktivasi |
-| Quota | 100 request/hari |
-| Model AI | Gemini Flash |
-| Dashboard | https://9router.cortex-ai.my.id/customer/dashboard |
+- Plan: Free Trial
+- Durasi: 3 hari sejak aktivasi
+- Quota: 100 request/hari
+- Model AI: Gemini Flash
+- Dashboard: https://9router.cortex-ai.my.id/customer/dashboard
 
 ---
 
 ## Mau Upgrade?
 
-Free trial habis? Upgrade ke **Pro Plan** untuk:
+Free trial habis? Upgrade ke Pro Plan untuk:
 - Semua model AI (Claude, Gemini, GPT)
 - 5.000 request/hari
 - Web automation + SSH access
 - Aktif 30 hari
 
-Beli di: *[link lynk.id kamu]*
+Beli di: [link lynk.id kamu]
 
 ---
 
 ## Butuh Bantuan?
 
-- Panduan lengkap: **https://docs.cortex-ai.my.id**
-- Admin: **@ekonugroho98** (Telegram)
-- Dashboard: **https://9router.cortex-ai.my.id/customer/dashboard**
+- Panduan lengkap: https://docs.cortex-ai.my.id
+- Admin WA: +6281519624321
+- Dashboard: https://9router.cortex-ai.my.id/customer/dashboard
 
 ---
 
-*Cortex AI — Your Personal AI Agent*
-*https://cortex-ai.my.id*
+Cortex AI — Your Personal AI Agent
+https://cortex-ai.my.id

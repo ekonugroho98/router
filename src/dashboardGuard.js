@@ -122,6 +122,9 @@ async function hasValidApiKey(request) {
 async function canAccessPublicLlmApi(request) {
   if (isLocalRequest(request)) return true;
   if (await hasValidCliToken(request)) return true;
+  // Allow customer keys (sk-cortex-*) through — tenant auth handles them in chat handler
+  const apiKey = extractApiKey(request);
+  if (apiKey && apiKey.startsWith("sk-cortex-")) return true;
   return await hasValidApiKey(request);
 }
 

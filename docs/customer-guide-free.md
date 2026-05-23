@@ -73,7 +73,7 @@ Bot akan reply sebagai AI assistant. Selamat!
 - Plan: Free Trial
 - Durasi: 3 hari sejak aktivasi
 - Quota: 100 request/hari
-- Model AI: Gemini Flash
+- Model AI: Auto
 - Dashboard: https://9router.cortex-ai.my.id/customer/dashboard
 
 ---

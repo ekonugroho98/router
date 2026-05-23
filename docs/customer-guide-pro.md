@@ -61,7 +61,6 @@ Buka bot di Telegram → kirim /start → coba chat!
 
 Kirim di Telegram:
 
-/model gc/gemini-2.5-flash       → tercepat
 /model kr/claude-sonnet-4.5      → best coding
 /model kr/claude-opus-4.6        → most powerful
 /model cx/gpt-5.5                → creative writing

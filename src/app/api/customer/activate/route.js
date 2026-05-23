@@ -102,6 +102,7 @@ export async function PUT(request) {
       activatedWith: code,
       expiresAt,
       durationDays: codeResult.durationDays,
+      provisionStatus: "pending",
     },
   });
 

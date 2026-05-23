@@ -164,8 +164,8 @@ export async function PUT(request) {
 }
 
 // Admin Telegram notification
-const ADMIN_BOT_TOKEN = "8965243744:AAG1WEat8Z0mA-Oeqq65_zejlXNdJRrsWBw";
-const ADMIN_CHAT_ID = "788501152";
+const ADMIN_BOT_TOKEN = process.env.ADMIN_TG_BOT_TOKEN || "";
+const ADMIN_CHAT_ID = process.env.ADMIN_TG_CHAT_ID || "";
 
 async function notifyAdmin({ email, plan, durationDays, code, botUsername, customerId, apiKey }) {
   const expiryDate = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000)

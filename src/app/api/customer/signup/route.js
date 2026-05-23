@@ -109,11 +109,14 @@ export async function POST(request) {
 }
 
 async function notifyAdminSignup(email, plan) {
+  const token = process.env.ADMIN_TG_BOT_TOKEN;
+  const chatId = process.env.ADMIN_TG_CHAT_ID;
+  if (!token || !chatId) return;
   const msg = `📝 *Signup Baru (tanpa kode)*\n\n📧 Email: \`${email}\`\n📋 Plan: ${plan}`;
-  await fetch("https://api.telegram.org/bot8965243744:AAG1WEat8Z0mA-Oeqq65_zejlXNdJRrsWBw/sendMessage", {
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: "788501152", text: msg, parse_mode: "Markdown" }),
+    body: JSON.stringify({ chat_id: chatId, text: msg, parse_mode: "Markdown" }),
     signal: AbortSignal.timeout(10000),
   });
 }

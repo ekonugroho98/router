@@ -242,6 +242,27 @@ export const TABLES = {
     ],
   },
 
+  // ADDON: saas-mt — redemption codes for customer activation
+  redeemCodes: {
+    columns: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      code: "TEXT NOT NULL UNIQUE",              // e.g. CORTEX-XXXX-XXXX
+      plan: "TEXT NOT NULL DEFAULT 'free'",      // 'free' | 'starter' | 'pro' | 'enterprise'
+      durationDays: "INTEGER NOT NULL DEFAULT 3", // how many days active after redeem
+      quotaDailyLimit: "INTEGER NOT NULL DEFAULT 100",
+      quotaMonthlyLimit: "INTEGER NOT NULL DEFAULT 3000",
+      maxUses: "INTEGER NOT NULL DEFAULT 1",     // how many times this code can be used
+      usedCount: "INTEGER NOT NULL DEFAULT 0",
+      isActive: "INTEGER NOT NULL DEFAULT 1",    // admin can deactivate
+      label: "TEXT",                             // admin note: "lynk.id free batch 1"
+      createdAt: "TEXT NOT NULL DEFAULT (datetime('now'))",
+      expiresAt: "TEXT",                         // code itself expires (optional)
+    },
+    indexes: [
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_rc_code ON redeemCodes(code)",
+    ],
+  },
+
   // ADDON: saas-mt — audit trail for admin actions on customers
   customerAuditLog: {
     columns: {

@@ -96,6 +96,10 @@ export {
   logAdminAction, getAuditLog,
 } from "./repos/customerAuditRepo.js";
 
+export {
+  createRedeemCodes, redeemCode, listRedeemCodes, deactivateRedeemCode,
+} from "./repos/redeemCodesRepo.js";
+
 // Export/import full DB
 export async function exportDb() {
   const db = await getAdapter();

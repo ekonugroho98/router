@@ -13,7 +13,7 @@ Setelah pembayaran dikonfirmasi, kode dikirim via WhatsApp/Telegram.
 
 Format kode: CORTEX-XXXX-XXXX
 
-Belum terima kode? Chat admin: +6281519624321 (WA)
+Belum terima kode? Chat admin: https://wa.link/r9t6vi (WA)
 
 ---
 
@@ -94,7 +94,7 @@ Kirim di Telegram:
 ## Butuh Bantuan?
 
 - Panduan lengkap: https://docs.cortex-ai.my.id
-- Admin WA: +6281519624321
+- Admin WA: https://wa.link/r9t6vi
 - Dashboard: https://9router.cortex-ai.my.id/customer/dashboard
 
 ---

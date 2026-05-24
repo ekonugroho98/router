@@ -58,6 +58,15 @@ export default function CustomersPage() {
           {loading ? "Loading..." : `${total} customer${total !== 1 ? "s" : ""}`}
         </div>
 
+        {!loading && customers.length > 0 && (
+          <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <ProvisionSummary label="Active Containers" value={customers.filter((c) => provisionInfo(c).status === "active").length} tone="green" />
+            <ProvisionSummary label="Pending" value={customers.filter((c) => provisionInfo(c).status === "pending").length} tone="yellow" />
+            <ProvisionSummary label="Provisioning" value={customers.filter((c) => provisionInfo(c).status === "provisioning").length} tone="blue" />
+            <ProvisionSummary label="Errors" value={customers.filter((c) => provisionInfo(c).status === "error").length} tone="red" />
+          </div>
+        )}
+
         {customers.length === 0 && !loading ? (
           <div className="py-8 text-center text-sm text-text-muted">
             No customers yet. Click <strong>Add Customer</strong> to create the first one,
@@ -72,6 +81,7 @@ export default function CustomersPage() {
                   <th className="px-3 py-2 text-left">Plan</th>
                   <th className="px-3 py-2 text-right">Usage Today</th>
                   <th className="px-3 py-2 text-right">Quota</th>
+                  <th className="px-3 py-2 text-left">Container</th>
                   <th className="px-3 py-2 text-left">Status</th>
                   <th className="px-3 py-2 text-left">Joined</th>
                   <th className="px-3 py-2"></th>
@@ -82,6 +92,7 @@ export default function CustomersPage() {
                   const usedPct = c.quotaDailyLimit > 0
                     ? Math.min(100, (c.usageToday?.requests / c.quotaDailyLimit) * 100)
                     : 0;
+                  const provision = provisionInfo(c);
                   return (
                     <tr key={c.id} className="border-t border-border-default hover:bg-bg-secondary cursor-pointer" onClick={() => setSelected(c)}>
                       <td className="px-3 py-2">
@@ -104,6 +115,9 @@ export default function CustomersPage() {
                             style={{ width: `${usedPct}%` }}
                           />
                         </div>
+                      </td>
+                      <td className="px-3 py-2">
+                        <ProvisionBadge info={provision} />
                       </td>
                       <td className="px-3 py-2">
                         {c.isActive ? (
@@ -154,6 +168,54 @@ function planColor(plan) {
     case "enterprise": return "bg-purple-500/20 text-purple-400";
     default: return "bg-zinc-700 text-zinc-300";
   }
+}
+
+function provisionInfo(customer) {
+  const metadata = customer?.metadata || {};
+  const status = metadata.provisionStatus || "none";
+  return {
+    status,
+    container: metadata.container || null,
+    sshPassword: metadata.sshPassword || null,
+    error: metadata.provisionError || null,
+  };
+}
+
+function provisionColor(status) {
+  switch (status) {
+    case "active": return "bg-green-500/15 text-green-400 border-green-500/25";
+    case "pending": return "bg-yellow-500/15 text-yellow-400 border-yellow-500/25";
+    case "provisioning": return "bg-blue-500/15 text-blue-400 border-blue-500/25";
+    case "error": return "bg-red-500/15 text-red-400 border-red-500/25";
+    default: return "bg-zinc-700/50 text-zinc-400 border-zinc-700";
+  }
+}
+
+function ProvisionBadge({ info }) {
+  const label = info.container || info.status;
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={`inline-flex w-fit items-center rounded border px-2 py-0.5 font-mono text-[11px] ${provisionColor(info.status)}`}>
+        {label}
+      </span>
+      {info.error && <span className="max-w-40 truncate text-[10px] text-red-400" title={info.error}>{info.error}</span>}
+    </div>
+  );
+}
+
+function ProvisionSummary({ label, value, tone }) {
+  const tones = {
+    green: "text-green-400",
+    yellow: "text-yellow-400",
+    blue: "text-blue-400",
+    red: "text-red-400",
+  };
+  return (
+    <div className="rounded-md border border-border-default bg-bg-secondary px-3 py-2">
+      <div className="text-[10px] uppercase tracking-wider text-text-muted">{label}</div>
+      <div className={`mt-1 text-xl font-semibold ${tones[tone] || "text-text-primary"}`}>{value}</div>
+    </div>
+  );
 }
 
 // ─── Create modal ───────────────────────────────────────────────────────────
@@ -298,6 +360,8 @@ function CustomerDetailModal({ customer, isOpen, onClose, onUpdated }) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Customer: ${customer.email}`} size="lg">
       <div className="space-y-4">
+        <ProvisionDetail info={provisionInfo(details?.customer || customer)} />
+
         {/* Usage summary */}
         {details?.usage && (
           <div className="grid grid-cols-2 gap-3">
@@ -398,5 +462,33 @@ function CustomerDetailModal({ customer, isOpen, onClose, onUpdated }) {
         </div>
       </div>
     </Modal>
+  );
+}
+
+function ProvisionDetail({ info }) {
+  return (
+    <div className="rounded-md border border-zinc-800 bg-zinc-950 p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-xs font-medium text-text-muted">Container Provisioning</div>
+        <span className={`rounded border px-2 py-0.5 text-xs ${provisionColor(info.status)}`}>
+          {info.status}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-2 text-xs md:grid-cols-2">
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-muted">Container</div>
+          <code className="font-mono text-text-primary">{info.container || "-"}</code>
+        </div>
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-text-muted">SSH Password</div>
+          <code className="font-mono text-text-primary">{info.sshPassword || "-"}</code>
+        </div>
+      </div>
+      {info.error && (
+        <div className="mt-2 rounded border border-red-500/25 bg-red-500/10 px-2 py-1 text-xs text-red-400">
+          {info.error}
+        </div>
+      )}
+    </div>
   );
 }

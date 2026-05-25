@@ -82,10 +82,10 @@ model:
   base_url: ${ROUTER_URL}
   api_key: ${API_KEY}
 agent:
-  max_turns: 30
+  max_turns: 15
   image_input_mode: native
-  api_max_retries: 2
-  gateway_timeout: 1800
+  api_max_retries: 1
+  gateway_timeout: 300
 display:
   streaming: true
   compact: false

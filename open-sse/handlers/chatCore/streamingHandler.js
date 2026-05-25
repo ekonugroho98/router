@@ -93,6 +93,18 @@ export function buildOnStreamComplete({ provider, model, connectionId, apiKey, r
     });
 
     saveUsageStats({ provider, model, tokens: usage, connectionId, apiKey, endpoint: clientRawRequest?.endpoint, label: "STREAM USAGE" });
+
+    // ADDON: saas-mt — finalize tenant usage with actual token counts
+    if (clientRawRequest?._tenant?._usageRowId) {
+      const { finalizeTenantUsage } = require("@/sse/services/tenantAuth");
+      finalizeTenantUsage(clientRawRequest._tenant._usageRowId, {
+        status: "success",
+        latencyMs: latency.total,
+        promptTokens: usage?.prompt_tokens || 0,
+        completionTokens: usage?.completion_tokens || 0,
+      });
+      clientRawRequest._tenant._usageFinalized = true;
+    }
   };
 
   return { onStreamComplete, streamDetailId };

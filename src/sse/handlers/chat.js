@@ -98,6 +98,9 @@ export async function handleChat(request, clientRawRequest = null) {
         status: "pending",
         latencyMs: 0,
       });
+      // Attach tenant to clientRawRequest so streaming handler can finalize with tokens
+      clientRawRequest._tenant = tenant;
+      clientRawRequest._requestStartMs = requestStartMs;
     }
   }
   // END ADDON: saas-mt
@@ -144,8 +147,8 @@ export async function handleChat(request, clientRawRequest = null) {
       comboStrategy,
       comboStickyLimit
     });
-    // ADDON: saas-mt — finalize pending usage after response
-    if (tenant?._usageRowId) {
+    // ADDON: saas-mt — finalize pending usage after response (skip if streaming handler already did it)
+    if (tenant?._usageRowId && !tenant._usageFinalized) {
       const latencyMs = Date.now() - requestStartMs;
       const isError = comboResponse?.status >= 400;
       finalizeTenantUsage(tenant._usageRowId, {
@@ -159,8 +162,8 @@ export async function handleChat(request, clientRawRequest = null) {
 
   // Single model request
   const singleResponse = await handleSingleModelChat(body, modelStr, clientRawRequest, request, apiKey);
-  // ADDON: saas-mt — finalize pending usage after response
-  if (tenant?._usageRowId) {
+  // ADDON: saas-mt — finalize pending usage after response (skip if streaming handler already did it)
+  if (tenant?._usageRowId && !tenant._usageFinalized) {
     const latencyMs = Date.now() - requestStartMs;
     const isError = singleResponse?.status >= 400;
     finalizeTenantUsage(tenant._usageRowId, {

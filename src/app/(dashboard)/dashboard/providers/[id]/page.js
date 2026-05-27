@@ -24,6 +24,8 @@ import BulkOpenRouterLoginModal from "../components/BulkOpenRouterLoginModal";
 import BulkGeminiCliLoginModal from "../components/BulkGeminiCliLoginModal";
 // ADDON: ollama-bulk
 import BulkOllamaLoginModal from "../components/BulkOllamaLoginModal";
+// ADDON: siliconflow-bulk
+import BulkSiliconFlowLoginModal from "../components/BulkSiliconFlowLoginModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -57,6 +59,7 @@ export default function ProviderDetailPage() {
   const [showBulkOpenRouterModal, setShowBulkOpenRouterModal] = useState(false); // ADDON: openrouter-bulk
   const [showBulkGeminiCliModal, setShowBulkGeminiCliModal] = useState(false); // ADDON: gemini-cli-bulk
   const [showBulkOllamaModal, setShowBulkOllamaModal] = useState(false); // ADDON: ollama-bulk
+  const [showBulkSiliconFlowModal, setShowBulkSiliconFlowModal] = useState(false); // ADDON: siliconflow-bulk
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -1363,6 +1366,19 @@ export default function ProviderDetailPage() {
                       Bulk Add
                     </Button>
                   )}
+                  {/* ADDON: siliconflow-bulk — bulk auto-add SiliconFlow accounts via Camoufox sidecar */}
+                  {providerId === "siliconflow" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkSiliconFlowModal(true)}
+                      title="Bulk auto-add SiliconFlow accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
                   {/* ADDON: ollama-bulk — bulk auto-add Ollama Cloud accounts via Camoufox sidecar */}
                   {providerId === "ollama" && (
                     <Button
@@ -1542,6 +1558,16 @@ export default function ProviderDetailPage() {
         <BulkGeminiCliLoginModal
           isOpen={showBulkGeminiCliModal}
           onClose={() => setShowBulkGeminiCliModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
+      {/* ADDON: siliconflow-bulk */}
+      {providerId === "siliconflow" && (
+        <BulkSiliconFlowLoginModal
+          isOpen={showBulkSiliconFlowModal}
+          onClose={() => setShowBulkSiliconFlowModal(false)}
           onSuccess={() => {
             if (typeof fetchConnections === "function") fetchConnections();
           }}

@@ -31,7 +31,7 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Ollama Cloud Google-OAuth + create API key helper")
     p.add_argument("--email", required=True, help="Google email")
     p.add_argument("--password", required=True, help="Google password")
-    p.add_argument("--headless", action="store_true", default=True, help="Run headless (default)")
+    p.add_argument("--headless", action="store_true", default=False, help="Run headless")
     p.add_argument("--no-headless", action="store_true", help="Show browser")
     p.add_argument("--proxy", default=None, help="HTTP/SOCKS proxy URL")
     p.add_argument("--timeout", type=int, default=120, help="Max seconds before giving up")
@@ -427,12 +427,42 @@ async def _do_login_and_generate(page, args):
         emit_final_error(f"Password input error: {e}")
         return
 
-    # Wait for redirect back to ollama.com
-    prog("Waiting for redirect to Ollama...")
-    deadline = time.time() + 30
+    # Handle Google interstitials (Allow access, Continue, Choose account, etc.)
+    prog("Handling Google interstitials...")
+    deadline = time.time() + 45
     while time.time() < deadline:
+        current = google_page.url if google_page != page else page.url
+
+        # Already redirected to ollama
         if "ollama.com" in page.url and "accounts.google" not in page.url:
             break
+
+        # Click any "Continue", "Allow", "Confirm" buttons on Google pages
+        try:
+            clicked = await google_page.evaluate("""() => {
+                const btns = [...document.querySelectorAll('button, [role="button"], a')];
+                const keywords = ['continue', 'allow', 'confirm', 'next', 'accept', 'yes', 'submit'];
+                for (const btn of btns) {
+                    const text = (btn.textContent || '').toLowerCase().trim();
+                    if (keywords.some(k => text.includes(k)) && btn.offsetParent !== null) {
+                        btn.click();
+                        return text;
+                    }
+                }
+                // Also try submit buttons
+                const submits = document.querySelectorAll('input[type="submit"], button[type="submit"]');
+                for (const s of submits) {
+                    if (s.offsetParent !== null) { s.click(); return 'submit'; }
+                }
+                return null;
+            }""")
+            if clicked:
+                prog(f"Clicked Google button: {clicked}")
+                await asyncio.sleep(3)
+                continue
+        except:
+            pass
+
         await asyncio.sleep(1)
 
     if "ollama.com" not in page.url:

@@ -41,6 +41,7 @@ KIRO_LOGIN_SCRIPT = SCRIPT_DIR / "kiro_login.py"
 OPENROUTER_LOGIN_SCRIPT = SCRIPT_DIR / "openrouter_login.py"
 GEMINI_CLI_LOGIN_SCRIPT = SCRIPT_DIR / "gemini_login.py"
 OLLAMA_LOGIN_SCRIPT = SCRIPT_DIR / "ollama_login.py"
+SILICONFLOW_LOGIN_SCRIPT = SCRIPT_DIR / "siliconflow_login.py"
 PYTHON_BIN = sys.executable  # gunakan python yang sama (dari venv)
 
 # Map provider name → login script
@@ -49,6 +50,7 @@ PROVIDER_SCRIPTS = {
     "openrouter": OPENROUTER_LOGIN_SCRIPT,
     "gemini-cli": GEMINI_CLI_LOGIN_SCRIPT,
     "ollama": OLLAMA_LOGIN_SCRIPT,
+    "siliconflow": SILICONFLOW_LOGIN_SCRIPT,
 }
 
 # ─── Config ────────────────────────────────────────────────────────────────
@@ -405,6 +407,40 @@ async def save_ollama_to_router(
         return {"status_code": 0, "ok": False, "body": {"error": str(e)}}
 
 
+async def save_siliconflow_to_router(
+    api_key: str,
+    router_url: str = None,
+    name: str = None,
+) -> dict:
+    """Save SiliconFlow API key sebagai provider connection di 9router."""
+    base = router_url or CONFIG["router_url"]
+    url = base + "/api/providers"
+    timeout = ClientTimeout(total=30)
+    headers = {"Content-Type": "application/json"}
+    if CONFIG.get("cli_token"):
+        headers["x-9r-cli-token"] = CONFIG["cli_token"]
+
+    payload = {
+        "provider": "siliconflow",
+        "apiKey": api_key,
+        "name": name or "SiliconFlow",
+        "testStatus": "active",
+    }
+
+    try:
+        async with ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=payload, headers=headers) as resp:
+                body = await resp.text()
+                try:
+                    parsed = json.loads(body)
+                except Exception:
+                    parsed = {"raw": body}
+                ok = 200 <= resp.status < 300
+                return {"status_code": resp.status, "body": parsed, "ok": ok}
+    except Exception as e:
+        return {"status_code": 0, "ok": False, "body": {"error": str(e)}}
+
+
 # Dispatch table — per-provider save logic
 PROVIDER_SAVE_HANDLERS = {
     "kiro": lambda data, router_url, name: save_to_router(
@@ -422,6 +458,9 @@ PROVIDER_SAVE_HANDLERS = {
         name=name,
     ),
     "ollama": lambda data, router_url, name: save_ollama_to_router(
+        data.get("api_key"), router_url=router_url, name=name,
+    ),
+    "siliconflow": lambda data, router_url, name: save_siliconflow_to_router(
         data.get("api_key"), router_url=router_url, name=name,
     ),
 }

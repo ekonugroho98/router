@@ -345,6 +345,10 @@ export const PROVIDERS = {
     baseUrl: "https://llm.chutes.ai/v1/chat/completions",
     format: "openai"
   },
+  pollinations: {
+    baseUrl: "https://gen.pollinations.ai/v1/chat/completions",
+    format: "openai"
+  },
   ollama: {
     baseUrl: "https://ollama.com/api/chat",
     format: "ollama"

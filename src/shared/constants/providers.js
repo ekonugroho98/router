@@ -23,6 +23,7 @@ export const FREE_TIER_PROVIDERS = {
   vertex: { id: "vertex", alias: "vx", name: "Vertex AI", icon: "cloud", color: "#4285F4", textIcon: "VX", website: "https://cloud.google.com/vertex-ai", notice: { text: "New Google Cloud accounts get $300 free credits. Requires GCP project + Service Account with Vertex AI API enabled.", apiKeyUrl: "https://console.cloud.google.com/iam-admin/serviceaccounts" } },
   gemini: { id: "gemini", alias: "gemini", name: "Gemini", icon: "diamond", color: "#4285F4", textIcon: "GE", mediaPriority: 1, website: "https://ai.google.dev", notice: { apiKeyUrl: "https://aistudio.google.com/app/apikey" }, serviceKinds: ["llm", "embedding", "image", "imageToText", "webSearch", "tts", "stt"], sttConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models", authType: "apikey", authHeader: "key", format: "gemini-stt", models: [{ id: "gemini-2.5-pro", name: "Gemini 2.5 Pro (Best)" }, { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" }, { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash Lite (Cheapest)" }, { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" }] }, searchViaChat: { defaultModel: "gemini-2.5-flash", pricingUrl: "https://ai.google.dev/pricing", freeTier: "Free tier: 15 RPM, 1M tokens/day on gemini-2.5-flash via AI Studio." }, embeddingConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models", authType: "apikey", authHeader: "key", models: [{ id: "text-embedding-004", name: "Text Embedding 004", dimensions: 768 }, { id: "embedding-001", name: "Embedding 001", dimensions: 768 }] }, ttsConfig: { baseUrl: "https://generativelanguage.googleapis.com/v1beta/models", authType: "apikey", authHeader: "key", format: "gemini-tts", models: [{ id: "gemini-2.5-flash-preview-tts", name: "Gemini 2.5 Flash TTS" }, { id: "gemini-2.5-pro-preview-tts", name: "Gemini 2.5 Pro TTS" }] } },
   "cloudflare-ai": { id: "cloudflare-ai", alias: "cf", name: "Cloudflare", icon: "cloud", color: "#F38020", textIcon: "CF", website: "https://developers.cloudflare.com/workers-ai/", notice: { text: "Workers AI free tier. Requires a Cloudflare API token and Account ID.", apiKeyUrl: "https://dash.cloudflare.com/profile/api-tokens" }, serviceKinds: ["llm", "image"], hasProviderSpecificData: true },
+  pollinations: { id: "pollinations", alias: "poll", name: "Pollinations", icon: "local_florist", color: "#F472B6", textIcon: "PO", website: "https://pollinations.ai", notice: { text: "Free tier: ~720 req/hr (Seed), models: GPT-5.4, DeepSeek V4, Llama 3.3, Mistral. GitHub signup for API key.", apiKeyUrl: "https://pollinations.ai/settings" } },
   byteplus: { id: "byteplus", alias: "bpm", name: "BytePlus ModelArk", icon: "cloud", color: "#2563EB", textIcon: "BP", website: "https://console.byteplus.com/ark", notice: { text: "Free credits for new accounts. Access to Seed 2.0, Kimi K2 Thinking, GLM 4.7, GPT-OSS-120B models.", apiKeyUrl: "https://console.byteplus.com/ark/region:ark+ap-southeast-1/apiKey" }, serviceKinds: ["llm"] },
 };
 
@@ -272,6 +273,7 @@ export const USAGE_SUPPORTED_PROVIDERS = [
   "codex",
   "kimi-coding",
   "ollama",
+  "pollinations",
   "gemini-cli",
   "glm",
   "glm-cn",

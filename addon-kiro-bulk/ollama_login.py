@@ -35,6 +35,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-headless", action="store_true", help="Show browser")
     p.add_argument("--proxy", default=None, help="HTTP/SOCKS proxy URL")
     p.add_argument("--timeout", type=int, default=120, help="Max seconds before giving up")
+    p.add_argument("--retries", type=int, default=3, help="Max retries")
+    p.add_argument("--anticaptcha-key", default=None, help="Anticaptcha API key")
     return p.parse_args()
 
 

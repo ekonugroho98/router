@@ -329,18 +329,6 @@ export default function ProvidersPage() {
         </div>
       )}
 
-      {/* ADDON: kiro-bulk — Bulk Auto-Add Kiro Accounts button */}
-      <div className="flex justify-end">
-        <Button
-          size="sm"
-          variant="secondary"
-          icon="rocket_launch"
-          onClick={() => setShowBulkKiroModal(true)}
-        >
-          Bulk Add Kiro Accounts
-        </Button>
-      </div>
-
       {/* Custom Providers (OpenAI/Anthropic Compatible) — dynamic */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

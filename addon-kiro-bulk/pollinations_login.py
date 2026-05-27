@@ -466,18 +466,88 @@ async def _do_login_and_generate(page, args):
     await page.goto(KEYS_URL, timeout=30000, wait_until="domcontentloaded")
     await asyncio.sleep(3)
 
-    # Step 8: Click "API Key" section if needed
-    clicked = await click_by_text(page, ["API Key", "API Keys", "Keys"])
-    if clicked:
-        prog(f"Clicked: {clicked}")
-        await asyncio.sleep(2)
+    # Step 8: Click "API Key" section/tab if needed
+    prog("Looking for API Key section...")
+    await page.evaluate("""() => {
+        const links = [...document.querySelectorAll('a, button, [role="tab"], div')];
+        const apiKeyLink = links.find(l => {
+            const text = (l.textContent || '').trim();
+            return text === 'API Key' || text === 'API Keys' || text === 'Keys';
+        });
+        if (apiKeyLink) apiKeyLink.click();
+    }""")
+    await asyncio.sleep(2)
 
-    # Step 9: Click "Create" button
-    prog("Looking for Create button...")
-    clicked = await click_by_text(page, ["Create", "New", "Generate", "Add", "Create API Key", "New Key"])
+    # Step 9: Click the "Create" button specifically for API key creation
+    prog("Looking for Create API Key button...")
+
+    # Be more specific — look for Create button near "API Key" context
+    clicked = await page.evaluate("""() => {
+        const btns = [...document.querySelectorAll('button')];
+        // First try exact matches
+        for (const btn of btns) {
+            const text = (btn.textContent || '').trim().toLowerCase();
+            if ((text === 'create' || text === 'create api key' || text === 'new key' || text === 'generate')
+                && btn.offsetParent !== null) {
+                btn.click();
+                return btn.textContent.trim();
+            }
+        }
+        // Try buttons with + icon near key section
+        for (const btn of btns) {
+            const text = (btn.textContent || '').trim();
+            if (text.includes('+') || btn.querySelector('[class*="plus"], [class*="add"]')) {
+                btn.click();
+                return text || 'plus-button';
+            }
+        }
+        return null;
+    }""")
+
     if clicked:
         prog(f"Clicked: {clicked}")
-        await asyncio.sleep(3)
+    else:
+        prog("Trying click_by_text fallback...")
+        clicked = await click_by_text(page, ["Create", "Create API Key", "New Key", "Generate"])
+        if clicked:
+            prog(f"Fallback clicked: {clicked}")
+
+    await asyncio.sleep(3)
+
+    # Step 9b: Handle confirmation popup/dialog if any
+    prog("Checking for confirmation popup...")
+    for _ in range(3):
+        popup_clicked = await page.evaluate("""() => {
+            // Look for modal/dialog buttons
+            const modals = document.querySelectorAll('[role="dialog"], .modal, [class*="modal"], [class*="popup"], [class*="overlay"]');
+            for (const modal of modals) {
+                const btns = modal.querySelectorAll('button');
+                for (const btn of btns) {
+                    const text = (btn.textContent || '').trim().toLowerCase();
+                    if (['create', 'confirm', 'ok', 'yes', 'generate', 'submit'].includes(text) && btn.offsetParent !== null) {
+                        btn.click();
+                        return btn.textContent.trim();
+                    }
+                }
+            }
+            // Also try any visible dialog button
+            const allBtns = document.querySelectorAll('button');
+            for (const btn of allBtns) {
+                const text = (btn.textContent || '').trim().toLowerCase();
+                if (text === 'create' && btn.offsetParent !== null) {
+                    btn.click();
+                    return 'create-btn';
+                }
+            }
+            return null;
+        }""")
+        if popup_clicked:
+            prog(f"Popup confirmed: {popup_clicked}")
+            await asyncio.sleep(2)
+            break
+        await asyncio.sleep(1)
+
+    await asyncio.sleep(3)
 
     # Step 10: Extract API key (sk_...)
     prog("Extracting API key...")

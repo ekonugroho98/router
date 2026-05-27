@@ -26,6 +26,8 @@ import BulkGeminiCliLoginModal from "../components/BulkGeminiCliLoginModal";
 import BulkOllamaLoginModal from "../components/BulkOllamaLoginModal";
 // ADDON: siliconflow-bulk
 import BulkSiliconFlowLoginModal from "../components/BulkSiliconFlowLoginModal";
+// ADDON: pollinations-bulk
+import BulkPollinationsLoginModal from "../components/BulkPollinationsLoginModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -60,6 +62,7 @@ export default function ProviderDetailPage() {
   const [showBulkGeminiCliModal, setShowBulkGeminiCliModal] = useState(false); // ADDON: gemini-cli-bulk
   const [showBulkOllamaModal, setShowBulkOllamaModal] = useState(false); // ADDON: ollama-bulk
   const [showBulkSiliconFlowModal, setShowBulkSiliconFlowModal] = useState(false); // ADDON: siliconflow-bulk
+  const [showBulkPollinationsModal, setShowBulkPollinationsModal] = useState(false); // ADDON: pollinations-bulk
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -1366,6 +1369,19 @@ export default function ProviderDetailPage() {
                       Bulk Add
                     </Button>
                   )}
+                  {/* ADDON: pollinations-bulk — bulk auto-add Pollinations accounts via Camoufox sidecar */}
+                  {providerId === "pollinations" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkPollinationsModal(true)}
+                      title="Bulk auto-add Pollinations accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
                   {/* ADDON: siliconflow-bulk — bulk auto-add SiliconFlow accounts via Camoufox sidecar */}
                   {providerId === "siliconflow" && (
                     <Button
@@ -1558,6 +1574,16 @@ export default function ProviderDetailPage() {
         <BulkGeminiCliLoginModal
           isOpen={showBulkGeminiCliModal}
           onClose={() => setShowBulkGeminiCliModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
+      {/* ADDON: pollinations-bulk */}
+      {providerId === "pollinations" && (
+        <BulkPollinationsLoginModal
+          isOpen={showBulkPollinationsModal}
+          onClose={() => setShowBulkPollinationsModal(false)}
           onSuccess={() => {
             if (typeof fetchConnections === "function") fetchConnections();
           }}

@@ -42,6 +42,7 @@ OPENROUTER_LOGIN_SCRIPT = SCRIPT_DIR / "openrouter_login.py"
 GEMINI_CLI_LOGIN_SCRIPT = SCRIPT_DIR / "gemini_login.py"
 OLLAMA_LOGIN_SCRIPT = SCRIPT_DIR / "ollama_login.py"
 SILICONFLOW_LOGIN_SCRIPT = SCRIPT_DIR / "siliconflow_login.py"
+POLLINATIONS_LOGIN_SCRIPT = SCRIPT_DIR / "pollinations_login.py"
 PYTHON_BIN = sys.executable  # gunakan python yang sama (dari venv)
 
 # Map provider name → login script
@@ -51,6 +52,7 @@ PROVIDER_SCRIPTS = {
     "gemini-cli": GEMINI_CLI_LOGIN_SCRIPT,
     "ollama": OLLAMA_LOGIN_SCRIPT,
     "siliconflow": SILICONFLOW_LOGIN_SCRIPT,
+    "pollinations": POLLINATIONS_LOGIN_SCRIPT,
 }
 
 # ─── Config ────────────────────────────────────────────────────────────────
@@ -407,6 +409,30 @@ async def save_ollama_to_router(
         return {"status_code": 0, "ok": False, "body": {"error": str(e)}}
 
 
+async def save_pollinations_to_router(
+    api_key: str, router_url: str = None, name: str = None,
+) -> dict:
+    """Save Pollinations API key sebagai provider connection di 9router."""
+    base = router_url or CONFIG["router_url"]
+    url = base + "/api/providers"
+    timeout = ClientTimeout(total=30)
+    headers = {"Content-Type": "application/json"}
+    if CONFIG.get("cli_token"):
+        headers["x-9r-cli-token"] = CONFIG["cli_token"]
+    payload = {"provider": "pollinations", "apiKey": api_key, "name": name or "Pollinations", "testStatus": "active"}
+    try:
+        async with ClientSession(timeout=timeout) as session:
+            async with session.post(url, json=payload, headers=headers) as resp:
+                body = await resp.text()
+                try:
+                    parsed = json.loads(body)
+                except:
+                    parsed = {"raw": body}
+                return {"status_code": resp.status, "body": parsed, "ok": 200 <= resp.status < 300}
+    except Exception as e:
+        return {"status_code": 0, "ok": False, "body": {"error": str(e)}}
+
+
 async def save_siliconflow_to_router(
     api_key: str,
     router_url: str = None,
@@ -461,6 +487,9 @@ PROVIDER_SAVE_HANDLERS = {
         data.get("api_key"), router_url=router_url, name=name,
     ),
     "siliconflow": lambda data, router_url, name: save_siliconflow_to_router(
+        data.get("api_key"), router_url=router_url, name=name,
+    ),
+    "pollinations": lambda data, router_url, name: save_pollinations_to_router(
         data.get("api_key"), router_url=router_url, name=name,
     ),
 }

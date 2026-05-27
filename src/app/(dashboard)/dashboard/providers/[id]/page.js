@@ -22,6 +22,8 @@ import BulkKiroLoginModal from "../components/BulkKiroLoginModal";
 import BulkOpenRouterLoginModal from "../components/BulkOpenRouterLoginModal";
 // ADDON: gemini-cli-bulk
 import BulkGeminiCliLoginModal from "../components/BulkGeminiCliLoginModal";
+// ADDON: ollama-bulk
+import BulkOllamaLoginModal from "../components/BulkOllamaLoginModal";
 
 const ONE_BY_ONE_DELAY_MS = 1000;
 
@@ -54,6 +56,7 @@ export default function ProviderDetailPage() {
   const [showBulkKiroModal, setShowBulkKiroModal] = useState(false); // ADDON: kiro-bulk
   const [showBulkOpenRouterModal, setShowBulkOpenRouterModal] = useState(false); // ADDON: openrouter-bulk
   const [showBulkGeminiCliModal, setShowBulkGeminiCliModal] = useState(false); // ADDON: gemini-cli-bulk
+  const [showBulkOllamaModal, setShowBulkOllamaModal] = useState(false); // ADDON: ollama-bulk
   const [selectedConnectionIds, setSelectedConnectionIds] = useState([]);
   const [bulkProxyPoolId, setBulkProxyPoolId] = useState("__none__");
   const [bulkUpdatingProxy, setBulkUpdatingProxy] = useState(false);
@@ -1360,6 +1363,19 @@ export default function ProviderDetailPage() {
                       Bulk Add
                     </Button>
                   )}
+                  {/* ADDON: ollama-bulk — bulk auto-add Ollama Cloud accounts via Camoufox sidecar */}
+                  {providerId === "ollama" && (
+                    <Button
+                      size="sm"
+                      icon="rocket_launch"
+                      variant="secondary"
+                      onClick={() => setShowBulkOllamaModal(true)}
+                      title="Bulk auto-add Ollama Cloud accounts via browser automation"
+                      className="w-full sm:w-auto"
+                    >
+                      Bulk Add
+                    </Button>
+                  )}
                   {/* ADDON: gemini-cli-bulk — bulk auto-add Gemini CLI accounts via Camoufox sidecar */}
                   {providerId === "gemini-cli" && (
                     <Button
@@ -1526,6 +1542,16 @@ export default function ProviderDetailPage() {
         <BulkGeminiCliLoginModal
           isOpen={showBulkGeminiCliModal}
           onClose={() => setShowBulkGeminiCliModal(false)}
+          onSuccess={() => {
+            if (typeof fetchConnections === "function") fetchConnections();
+          }}
+        />
+      )}
+      {/* ADDON: ollama-bulk */}
+      {providerId === "ollama" && (
+        <BulkOllamaLoginModal
+          isOpen={showBulkOllamaModal}
+          onClose={() => setShowBulkOllamaModal(false)}
           onSuccess={() => {
             if (typeof fetchConnections === "function") fetchConnections();
           }}

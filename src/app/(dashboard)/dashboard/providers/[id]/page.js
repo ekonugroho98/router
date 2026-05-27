@@ -1334,14 +1334,6 @@ export default function ProviderDetailPage() {
                       Cookie
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    icon="add"
-                    onClick={triggerAddConnection}
-                    className="w-full sm:w-auto"
-                  >
-                    Add
-                  </Button>
                   {/* ADDON: kiro-bulk — bulk auto-add Kiro accounts via Camoufox sidecar */}
                   {(providerId === "kiro" || providerId === "kiro-pro") && (
                     <Button

@@ -36,7 +36,7 @@ def parse_args():
     p.add_argument("--proxy", default=None, help="HTTP/SOCKS proxy URL")
     p.add_argument("--timeout", type=int, default=300, help="Max seconds")
     p.add_argument("--retries", type=int, default=3, help="Max retries")
-    p.add_argument("--anticaptcha-key", default=None, help="Anticaptcha API key")
+    p.add_argument("--anticaptcha-key", default=os.environ.get("ANTICAPTCHA_KEY", ""), help="Anticaptcha API key (or set ANTICAPTCHA_KEY env var)")
     return p.parse_args()
 
 def prog(msg):
@@ -55,6 +55,147 @@ def emit_final_error(msg):
 
 SIGN_IN_URL = "https://enter.pollinations.ai/sign-in"
 KEYS_URL = "https://enter.pollinations.ai/#keys"
+
+
+async def solve_github_funcaptcha(page, anticaptcha_key):
+    """Solve GitHub FunCaptcha (Arkose Labs) via anti-captcha.com API.
+
+    GitHub signup uses FunCaptcha. anti-captcha solves it via their workers.
+    Cost: ~$0.002 per solve.
+    """
+    if not anticaptcha_key:
+        prog("No anticaptcha key — solve puzzle manually in browser")
+        return False
+
+    import urllib.request
+    import urllib.error
+
+    def api_post(endpoint, payload, timeout=30):
+        url = f"https://api.anti-captcha.com/{endpoint}"
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+
+    prog("Anti-Captcha: extracting FunCaptcha sitekey from GitHub...")
+
+    # Extract public key from GitHub page
+    public_key = await page.evaluate("""() => {
+        // GitHub FunCaptcha embeds public key in script or data attribute
+        const scripts = document.querySelectorAll('script');
+        for (const s of scripts) {
+            const text = s.textContent || s.innerHTML || '';
+            const match = text.match(/public_key["']?\\s*[:=]\\s*["']([A-F0-9-]{36})["']/i);
+            if (match) return match[1];
+        }
+        // Check iframe src
+        const iframes = document.querySelectorAll('iframe[src*="funcaptcha"], iframe[src*="arkoselabs"]');
+        for (const f of iframes) {
+            const src = f.src || '';
+            const match = src.match(/pk=([A-F0-9-]{36})/i);
+            if (match) return match[1];
+        }
+        // Check data attributes
+        const el = document.querySelector('[data-public-key], [data-pkey]');
+        if (el) return el.getAttribute('data-public-key') || el.getAttribute('data-pkey');
+        // GitHub known public key
+        return null;
+    }""")
+
+    # GitHub's known FunCaptcha public key
+    if not public_key:
+        public_key = "69A21A01-CC7B-B9C6-0F9A-B945B1153EC0"  # GitHub signup
+        prog(f"Using known GitHub FunCaptcha key: {public_key}")
+    else:
+        prog(f"Extracted FunCaptcha key: {public_key}")
+
+    page_url = page.url
+    prog(f"Anti-Captcha: creating FunCaptcha task...")
+
+    try:
+        loop = asyncio.get_event_loop()
+        create_payload = {
+            "clientKey": anticaptcha_key,
+            "task": {
+                "type": "FunCaptchaTaskProxyless",
+                "websiteURL": page_url,
+                "websitePublicKey": public_key,
+            }
+        }
+
+        create_resp = await loop.run_in_executor(None, lambda: api_post("createTask", create_payload))
+
+        if create_resp.get("errorId", 0) != 0:
+            prog(f"Anti-Captcha error: {create_resp.get('errorDescription', 'unknown')}")
+            return False
+
+        task_id = create_resp.get("taskId")
+        prog(f"Anti-Captcha task created: {task_id} — waiting for solution...")
+
+        # Poll for result (up to 120s)
+        for attempt in range(40):
+            await asyncio.sleep(3)
+            result = await loop.run_in_executor(None, lambda: api_post("getTaskResult", {
+                "clientKey": anticaptcha_key,
+                "taskId": task_id,
+            }))
+
+            status = result.get("status", "")
+            if status == "ready":
+                token = result.get("solution", {}).get("token", "")
+                if token:
+                    prog(f"Anti-Captcha solved! Token: {token[:30]}...")
+
+                    # Inject token into GitHub page
+                    injected = await page.evaluate(f"""(token) => {{
+                        // Try setting the FunCaptcha token
+                        const inputs = document.querySelectorAll('input[name*="captcha"], input[name*="arkose"], input[type="hidden"]');
+                        for (const inp of inputs) {{
+                            if (inp.name.includes('captcha') || inp.name.includes('arkose') || inp.name.includes('fc-token')) {{
+                                inp.value = token;
+                                return 'input_set';
+                            }}
+                        }}
+                        // Try callback
+                        if (window.FC && window.FC.setToken) {{
+                            window.FC.setToken(token);
+                            return 'FC_callback';
+                        }}
+                        // Try ArkoseEnforcement
+                        if (window.ArkoseEnforcement) {{
+                            try {{ window.ArkoseEnforcement.setConfig({{data: {{token: token}}}}); return 'arkose_set'; }} catch {{}}
+                        }}
+                        // Fallback: set any hidden input
+                        const hiddens = document.querySelectorAll('input[type="hidden"]');
+                        for (const h of hiddens) {{
+                            if (!h.value || h.value.length < 10) {{
+                                h.value = token;
+                                return 'hidden_set';
+                            }}
+                        }}
+                        return 'no_target';
+                    }}""", token)
+
+                    prog(f"Token injection result: {injected}")
+                    await asyncio.sleep(2)
+
+                    # Try clicking submit/continue after solving
+                    await click_by_text(page, ["Create account", "Continue", "Submit", "Verify"], timeout=3000)
+                    await asyncio.sleep(3)
+                    return True
+
+            elif status == "processing":
+                if attempt % 5 == 0:
+                    prog(f"Anti-Captcha still processing... ({attempt * 3}s)")
+            else:
+                prog(f"Anti-Captcha unexpected status: {status}")
+
+        prog("Anti-Captcha timeout (120s)")
+        return False
+
+    except Exception as e:
+        prog(f"Anti-Captcha error: {e}")
+        return False
 
 
 async def click_by_text(page, keywords, timeout=5000):
@@ -219,9 +360,18 @@ async def _do_login_and_generate(page, args):
             break
 
     if github_signup:
-        # Wait for puzzle/captcha to be solved (manual or auto)
-        # User needs to solve the puzzle in the browser window
-        prog("Waiting for GitHub signup puzzle (up to 180s — solve it in the browser)...")
+        # Try auto-solve with anticaptcha if key provided
+        anticaptcha_key = args.anticaptcha_key or os.environ.get("ANTICAPTCHA_KEY", "")
+        if anticaptcha_key:
+            for p in context.pages:
+                if "github.com" in p.url:
+                    solved = await solve_github_funcaptcha(p, anticaptcha_key)
+                    if solved:
+                        prog("FunCaptcha solved via anti-captcha!")
+                        await asyncio.sleep(5)
+                    break
+
+        prog("Waiting for GitHub signup puzzle (up to 180s — solve manually if anti-captcha fails)...")
         deadline_signup = time.time() + 180
         while time.time() < deadline_signup:
             signup_done = False

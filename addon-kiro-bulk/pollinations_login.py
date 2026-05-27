@@ -34,7 +34,7 @@ def parse_args():
     p.add_argument("--headless", action="store_true", default=False, help="Run headless")
     p.add_argument("--no-headless", action="store_true", help="Show browser")
     p.add_argument("--proxy", default=None, help="HTTP/SOCKS proxy URL")
-    p.add_argument("--timeout", type=int, default=180, help="Max seconds")
+    p.add_argument("--timeout", type=int, default=300, help="Max seconds")
     p.add_argument("--retries", type=int, default=3, help="Max retries")
     p.add_argument("--anticaptcha-key", default=None, help="Anticaptcha API key")
     return p.parse_args()
@@ -204,37 +204,93 @@ async def _do_login_and_generate(page, args):
         prog("No Google OAuth page found — might already be logged in")
 
     # Step 5: Handle GitHub "Create account" (for new GitHub accounts)
+    # GitHub signup has a puzzle/captcha that takes time — wait up to 180s
     prog("Checking for GitHub account creation...")
     await asyncio.sleep(3)
 
+    github_signup = False
     for p in context.pages:
-        if "github.com" in p.url:
-            # Check for "Create account" button
-            clicked = await click_by_text(p, ["Create account", "Join GitHub", "Sign up", "Create"])
+        if "github.com" in p.url and ("signup" in p.url or "join" in p.url):
+            github_signup = True
+            prog("GitHub signup page detected — clicking Create account...")
+            clicked = await click_by_text(p, ["Create account", "Join GitHub", "Sign up", "Create", "Continue"])
             if clicked:
                 prog(f"GitHub: {clicked}")
-                await asyncio.sleep(5)
             break
+
+    if github_signup:
+        # Wait for puzzle/captcha to be solved (manual or auto)
+        # User needs to solve the puzzle in the browser window
+        prog("Waiting for GitHub signup puzzle (up to 180s — solve it in the browser)...")
+        deadline_signup = time.time() + 180
+        while time.time() < deadline_signup:
+            signup_done = False
+            for p in context.pages:
+                url = p.url
+                # Signup done if redirected to authorize page or pollinations
+                if "authorize" in url or "oauth/authorize" in url:
+                    signup_done = True
+                    break
+                if "pollinations.ai" in url and "sign-in" not in url:
+                    signup_done = True
+                    break
+                # Still on GitHub but not signup anymore
+                if "github.com" in url and "signup" not in url and "join" not in url:
+                    signup_done = True
+                    break
+
+            if signup_done:
+                prog("GitHub signup completed!")
+                break
+
+            # Try clicking any continue/verify/submit buttons periodically
+            for p in context.pages:
+                if "github.com" in p.url:
+                    try:
+                        await click_by_text(p, ["Continue", "Verify", "Submit", "Next", "Create account"], timeout=2000)
+                    except:
+                        pass
+                    break
+
+            await asyncio.sleep(3)
 
     # Step 6: Handle GitHub "Authorize" (OAuth to Pollinations)
     prog("Checking for GitHub Authorize...")
     await asyncio.sleep(3)
 
-    for p in context.pages:
-        if "github.com" in p.url and ("authorize" in p.url or "oauth" in p.url):
-            prog("Found GitHub authorize page")
-            clicked = await click_by_text(p, ["Authorize", "Allow", "Approve", "Grant access"])
+    # Try multiple times — authorize page might take a moment to load
+    for attempt in range(10):
+        authorized = False
+        for p in context.pages:
+            if "github.com" in p.url and ("authorize" in p.url or "oauth" in p.url):
+                prog(f"Found GitHub authorize page (attempt {attempt+1})")
+                clicked = await click_by_text(p, ["Authorize", "Allow", "Approve", "Grant access", "Authorize pollinations"])
+                if clicked:
+                    prog(f"GitHub authorize: {clicked}")
+                    authorized = True
+                    await asyncio.sleep(5)
+                break
+
+        # Also check main page
+        if not authorized and "github.com" in page.url:
+            clicked = await click_by_text(page, ["Authorize", "Allow", "Approve"])
             if clicked:
-                prog(f"GitHub authorize: {clicked}")
+                prog(f"Authorized: {clicked}")
+                authorized = True
                 await asyncio.sleep(5)
+
+        if authorized:
             break
 
-    # Also try on main page
-    if "github.com" in page.url:
-        clicked = await click_by_text(page, ["Authorize", "Allow", "Approve"])
-        if clicked:
-            prog(f"Authorized: {clicked}")
-            await asyncio.sleep(5)
+        # Check if already redirected
+        for p in context.pages:
+            if "pollinations.ai" in p.url and "sign-in" not in p.url:
+                authorized = True
+                break
+        if authorized:
+            break
+
+        await asyncio.sleep(2)
 
     # Wait for redirect back to Pollinations
     prog("Waiting for redirect to Pollinations...")

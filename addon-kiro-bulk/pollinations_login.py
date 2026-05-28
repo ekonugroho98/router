@@ -198,11 +198,11 @@ async def solve_github_funcaptcha(page, anticaptcha_key):
                 await asyncio.sleep(5)
                 return True
 
-            elif status == "processing":
+            elif status == "processing" or status == "":
                 if attempt % 5 == 0:
                     prog(f"Anti-Captcha solving... ({attempt * 3}s elapsed)")
             else:
-                prog(f"Unexpected status: {status}")
+                prog(f"Unexpected status: '{status}' — full response: {json.dumps(result)[:200]}")
 
         prog("Anti-Captcha timeout (180s)")
         return False
@@ -374,6 +374,32 @@ async def _do_login_and_generate(page, args):
             break
 
     if github_signup:
+        # Wait for captcha page to load
+        prog("Waiting for captcha page to load...")
+        await asyncio.sleep(5)
+
+        # Click "Visual puzzle" button to activate the FunCaptcha
+        for p in context.pages:
+            if "github.com" in p.url:
+                prog("Clicking 'Visual puzzle' to activate captcha...")
+                vp_clicked = await click_by_text(p, ["Visual puzzle", "visual puzzle"])
+                if vp_clicked:
+                    prog(f"Clicked: {vp_clicked}")
+                    await asyncio.sleep(3)
+                else:
+                    # Try inside iframe
+                    try:
+                        frames = p.frames
+                        for frame in frames:
+                            vp = await click_by_text(frame, ["Visual puzzle", "visual puzzle"])
+                            if vp:
+                                prog(f"Clicked in iframe: {vp}")
+                                await asyncio.sleep(3)
+                                break
+                    except:
+                        pass
+                break
+
         # Try auto-solve with anticaptcha if key provided
         anticaptcha_key = args.anticaptcha_key or os.environ.get("ANTICAPTCHA_KEY", "")
         if anticaptcha_key:

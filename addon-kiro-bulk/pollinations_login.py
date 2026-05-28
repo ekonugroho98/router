@@ -58,9 +58,13 @@ KEYS_URL = "https://enter.pollinations.ai/#keys"
 
 
 async def solve_github_funcaptcha(page, anticaptcha_key):
-    """Solve GitHub FunCaptcha (Arkose Labs) via anti-captcha.com API.
+    """Solve GitHub OctoCaptcha (Arkose Labs FunCaptcha) via anti-captcha.com API.
 
-    GitHub signup uses FunCaptcha. anti-captcha solves it via their workers.
+    GitHub signup uses OctoCaptcha which wraps Arkose FunCaptcha.
+    Public key: 747B83EC-2CA3-43AD-A7DF-701F286FBABA
+    Subdomain: github-api.arkoselabs.com
+    Token target: input[name="octocaptcha-token"]
+
     Cost: ~$0.002 per solve.
     """
     if not anticaptcha_key:
@@ -70,127 +74,137 @@ async def solve_github_funcaptcha(page, anticaptcha_key):
     import urllib.request
     import urllib.error
 
-    def api_post(endpoint, payload, timeout=30):
+    GITHUB_FUNCAPTCHA_KEY = "747B83EC-2CA3-43AD-A7DF-701F286FBABA"
+    GITHUB_ARKOSE_SUBDOMAIN = "github-api.arkoselabs.com"
+
+    def api_post(endpoint, payload, timeout=60):
         url = f"https://api.anti-captcha.com/{endpoint}"
         data = json.dumps(payload).encode()
         req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
 
-    prog("Anti-Captcha: extracting FunCaptcha sitekey from GitHub...")
-
-    # Extract public key from GitHub page
-    public_key = await page.evaluate("""() => {
-        // GitHub FunCaptcha embeds public key in script or data attribute
-        const scripts = document.querySelectorAll('script');
-        for (const s of scripts) {
-            const text = s.textContent || s.innerHTML || '';
-            const match = text.match(/public_key["']?\\s*[:=]\\s*["']([A-F0-9-]{36})["']/i);
-            if (match) return match[1];
-        }
-        // Check iframe src
-        const iframes = document.querySelectorAll('iframe[src*="funcaptcha"], iframe[src*="arkoselabs"]');
-        for (const f of iframes) {
-            const src = f.src || '';
-            const match = src.match(/pk=([A-F0-9-]{36})/i);
-            if (match) return match[1];
-        }
-        // Check data attributes
-        const el = document.querySelector('[data-public-key], [data-pkey]');
-        if (el) return el.getAttribute('data-public-key') || el.getAttribute('data-pkey');
-        // GitHub known public key
-        return null;
-    }""")
-
-    # GitHub's known FunCaptcha public key
-    if not public_key:
-        public_key = "69A21A01-CC7B-B9C6-0F9A-B945B1153EC0"  # GitHub signup
-        prog(f"Using known GitHub FunCaptcha key: {public_key}")
-    else:
-        prog(f"Extracted FunCaptcha key: {public_key}")
-
-    page_url = page.url
-    prog(f"Anti-Captcha: creating FunCaptcha task...")
+    prog(f"Anti-Captcha: solving GitHub FunCaptcha (key: {GITHUB_FUNCAPTCHA_KEY[:8]}...)")
 
     try:
         loop = asyncio.get_event_loop()
+
         create_payload = {
             "clientKey": anticaptcha_key,
             "task": {
                 "type": "FunCaptchaTaskProxyless",
-                "websiteURL": page_url,
-                "websitePublicKey": public_key,
+                "websiteURL": "https://octocaptcha.com",
+                "websitePublicKey": GITHUB_FUNCAPTCHA_KEY,
+                "funcaptchaApiJSSubdomain": GITHUB_ARKOSE_SUBDOMAIN,
             }
         }
 
+        prog("Anti-Captcha: creating task...")
         create_resp = await loop.run_in_executor(None, lambda: api_post("createTask", create_payload))
 
         if create_resp.get("errorId", 0) != 0:
-            prog(f"Anti-Captcha error: {create_resp.get('errorDescription', 'unknown')}")
+            prog(f"Anti-Captcha createTask error: {create_resp.get('errorDescription', 'unknown')}")
             return False
 
         task_id = create_resp.get("taskId")
-        prog(f"Anti-Captcha task created: {task_id} — waiting for solution...")
+        prog(f"Anti-Captcha task {task_id} created — workers solving puzzle...")
 
-        # Poll for result (up to 120s)
-        for attempt in range(40):
+        # Poll for result (up to 180s — FunCaptcha can take a while)
+        for attempt in range(60):
             await asyncio.sleep(3)
-            result = await loop.run_in_executor(None, lambda: api_post("getTaskResult", {
-                "clientKey": anticaptcha_key,
-                "taskId": task_id,
-            }))
+
+            try:
+                result = await loop.run_in_executor(None, lambda: api_post("getTaskResult", {
+                    "clientKey": anticaptcha_key,
+                    "taskId": task_id,
+                }))
+            except Exception as e:
+                prog(f"Poll error: {e}")
+                continue
 
             status = result.get("status", "")
+
             if status == "ready":
                 token = result.get("solution", {}).get("token", "")
-                if token:
-                    prog(f"Anti-Captcha solved! Token: {token[:30]}...")
+                if not token:
+                    prog("Anti-Captcha returned ready but no token")
+                    return False
 
-                    # Inject token into GitHub page
-                    injected = await page.evaluate(f"""(token) => {{
-                        // Try setting the FunCaptcha token
-                        const inputs = document.querySelectorAll('input[name*="captcha"], input[name*="arkose"], input[type="hidden"]');
-                        for (const inp of inputs) {{
-                            if (inp.name.includes('captcha') || inp.name.includes('arkose') || inp.name.includes('fc-token')) {{
-                                inp.value = token;
-                                return 'input_set';
-                            }}
-                        }}
-                        // Try callback
-                        if (window.FC && window.FC.setToken) {{
-                            window.FC.setToken(token);
-                            return 'FC_callback';
-                        }}
-                        // Try ArkoseEnforcement
-                        if (window.ArkoseEnforcement) {{
-                            try {{ window.ArkoseEnforcement.setConfig({{data: {{token: token}}}}); return 'arkose_set'; }} catch {{}}
-                        }}
-                        // Fallback: set any hidden input
-                        const hiddens = document.querySelectorAll('input[type="hidden"]');
-                        for (const h of hiddens) {{
-                            if (!h.value || h.value.length < 10) {{
-                                h.value = token;
-                                return 'hidden_set';
-                            }}
-                        }}
-                        return 'no_target';
-                    }}""", token)
+                prog(f"FunCaptcha SOLVED! Token: {token[:40]}...")
 
-                    prog(f"Token injection result: {injected}")
-                    await asyncio.sleep(2)
+                # Inject token into octocaptcha-token hidden input
+                injected = await page.evaluate("""(token) => {
+                    // Primary: set octocaptcha-token input (GitHub's expected field)
+                    const octoInput = document.querySelector('input[name="octocaptcha-token"]');
+                    if (octoInput) {
+                        octoInput.value = token;
 
-                    # Try clicking submit/continue after solving
-                    await click_by_text(page, ["Create account", "Continue", "Submit", "Verify"], timeout=3000)
-                    await asyncio.sleep(3)
-                    return True
+                        // Trigger change event so GitHub JS picks it up
+                        octoInput.dispatchEvent(new Event('change', { bubbles: true }));
+                        octoInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+                        // Also try to show success state
+                        const spinner = document.querySelector('.js-octocaptcha-spinner');
+                        if (spinner) spinner.classList.add('d-none');
+                        const success = document.querySelector('.js-octocaptcha-success');
+                        if (success) { success.classList.remove('d-none'); success.classList.add('d-flex'); }
+                        // Hide captcha iframe
+                        const frame = document.querySelector('.js-octocaptcha-frame');
+                        if (frame) frame.style.display = 'none';
+
+                        return 'octocaptcha_token_set';
+                    }
+
+                    // Fallback: try any captcha-related hidden input
+                    const inputs = document.querySelectorAll('input[type="hidden"]');
+                    for (const inp of inputs) {
+                        if (inp.name.includes('captcha') || inp.name.includes('token')) {
+                            inp.value = token;
+                            return 'fallback_input_set: ' + inp.name;
+                        }
+                    }
+
+                    return 'no_target_found';
+                }""", token)
+
+                prog(f"Token injection: {injected}")
+
+                if 'no_target' in str(injected):
+                    prog("WARNING: Could not find target input for token")
+                    return False
+
+                await asyncio.sleep(2)
+
+                # Try to submit the form / click continue
+                submitted = await page.evaluate("""() => {
+                    // Try clicking the hidden submit button
+                    const submitBtn = document.querySelector('.js-octocaptcha-form-submit');
+                    if (submitBtn) {
+                        submitBtn.hidden = false;
+                        submitBtn.disabled = false;
+                        submitBtn.click();
+                        return 'submit_clicked';
+                    }
+                    // Try form submit
+                    const form = document.querySelector('form.js-octocaptcha-parent');
+                    if (form) {
+                        form.submit();
+                        return 'form_submitted';
+                    }
+                    return 'no_submit';
+                }""")
+
+                prog(f"Form submit: {submitted}")
+                await asyncio.sleep(5)
+                return True
 
             elif status == "processing":
                 if attempt % 5 == 0:
-                    prog(f"Anti-Captcha still processing... ({attempt * 3}s)")
+                    prog(f"Anti-Captcha solving... ({attempt * 3}s elapsed)")
             else:
-                prog(f"Anti-Captcha unexpected status: {status}")
+                prog(f"Unexpected status: {status}")
 
-        prog("Anti-Captcha timeout (120s)")
+        prog("Anti-Captcha timeout (180s)")
         return False
 
     except Exception as e:

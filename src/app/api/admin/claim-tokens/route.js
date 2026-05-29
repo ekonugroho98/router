@@ -1,6 +1,6 @@
 // ADDON: saas-mt — Admin API: manage claim tokens
 import { NextResponse } from "next/server";
-import { createClaimTokens, listClaimTokens, deactivateClaimToken } from "@/lib/db";
+import { createClaimTokens, listClaimTokens, deactivateClaimToken, deleteClaimToken } from "@/lib/db";
 import { verifyDashboardAuthToken } from "@/lib/auth/dashboardSession";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +54,11 @@ export async function DELETE(request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
-  await deactivateClaimToken(id);
+  const action = searchParams.get("action") || "deactivate";
+  if (action === "delete") {
+    await deleteClaimToken(id);
+  } else {
+    await deactivateClaimToken(id);
+  }
   return NextResponse.json({ success: true });
 }

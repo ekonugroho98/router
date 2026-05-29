@@ -87,3 +87,11 @@ export async function deactivateClaimToken(id) {
   const db = await getAdapter();
   db.run(`UPDATE claimTokens SET isActive = 0 WHERE id = ?`, [id]);
 }
+
+/**
+ * Delete a claim token permanently.
+ */
+export async function deleteClaimToken(id) {
+  const db = await getAdapter();
+  db.run(`DELETE FROM claimTokens WHERE id = ?`, [id]);
+}

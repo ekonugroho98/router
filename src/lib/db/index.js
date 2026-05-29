@@ -101,7 +101,7 @@ export {
 } from "./repos/redeemCodesRepo.js";
 
 export {
-  createClaimTokens, claimToken, listClaimTokens, deactivateClaimToken,
+  createClaimTokens, claimToken, listClaimTokens, deactivateClaimToken, deleteClaimToken,
 } from "./repos/claimTokensRepo.js";
 
 // Export/import full DB

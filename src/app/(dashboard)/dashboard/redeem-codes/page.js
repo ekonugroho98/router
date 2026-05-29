@@ -352,6 +352,12 @@ function ClaimTokensSection() {
     load();
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this token permanently?")) return;
+    await fetch(`/api/admin/claim-tokens?id=${id}&action=delete`, { method: "DELETE" });
+    load();
+  };
+
   const getStatus = (t) => {
     if (!t.isActive) return { label: "Deactivated", color: "text-red-400 bg-red-500/10" };
     if (t.expiresAt && new Date(t.expiresAt) < new Date()) return { label: "Expired", color: "text-yellow-400 bg-yellow-500/10" };
@@ -418,8 +424,9 @@ function ClaimTokensSection() {
                       <td className="px-3 py-2 text-right space-x-2">
                         <button onClick={() => copyUrl(t.token)} className="text-xs text-primary hover:text-primary/80 cursor-pointer">Copy</button>
                         {getStatus(t).label === "Active" && (
-                          <button onClick={() => handleDeactivate(t.id)} className="text-xs text-red-400 hover:text-red-300 cursor-pointer">Deactivate</button>
+                          <button onClick={() => handleDeactivate(t.id)} className="text-xs text-yellow-400 hover:text-yellow-300 cursor-pointer">Deactivate</button>
                         )}
+                        <button onClick={() => handleDelete(t.id)} className="text-xs text-red-400 hover:text-red-300 cursor-pointer">Delete</button>
                       </td>
                     </tr>
                   );
@@ -442,7 +449,8 @@ function ClaimTokensSection() {
 }
 
 function ClaimGenerateModal({ onClose, onGenerated, baseUrl }) {
-  const [count, setCount] = useState(10);
+  const [count, setCount] = useState(1);
+  const [maxClaims, setMaxClaims] = useState(50);
   const [plan, setPlan] = useState("free");
   const [durationDays, setDurationDays] = useState(PLAN_PRESETS.free.durationDays);
   const [dailyLimit, setDailyLimit] = useState(PLAN_PRESETS.free.dailyLimit);
@@ -472,7 +480,7 @@ function ClaimGenerateModal({ onClose, onGenerated, baseUrl }) {
           count, plan, durationDays,
           quotaDailyLimit: dailyLimit,
           quotaMonthlyLimit: monthlyLimit,
-          maxClaims: 1,
+          maxClaims,
           label: label || null,
         }),
       });
@@ -514,10 +522,14 @@ function ClaimGenerateModal({ onClose, onGenerated, baseUrl }) {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="text-xs text-text-muted mb-1 block">Count</label>
+              <label className="text-xs text-text-muted mb-1 block">Links</label>
               <Input type="number" min={1} max={50} value={count} onChange={e => setCount(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted mb-1 block">Max Claims / link</label>
+              <Input type="number" min={1} value={maxClaims} onChange={e => setMaxClaims(Number(e.target.value))} />
             </div>
             <div>
               <label className="text-xs text-text-muted mb-1 block">Plan</label>
@@ -537,7 +549,7 @@ function ClaimGenerateModal({ onClose, onGenerated, baseUrl }) {
             <Input placeholder="e.g. Lynk.id free batch" value={label} onChange={e => setLabel(e.target.value)} />
           </div>
           <div className="text-xs text-text-muted bg-surface-2 rounded p-2">
-            Each link = one-time use. Customer clicks → gets redeem code → redirects to activation.
+            Untuk Lynk.id: buat 1 link dengan max claims = jumlah stok. Setiap customer yang klik dapat kode unik.
           </div>
           <Button variant="primary" fullWidth onClick={handleGenerate} disabled={generating}>
             {generating ? "Generating..." : `Generate ${count} Link${count > 1 ? "s" : ""}`}

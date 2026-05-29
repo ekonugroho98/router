@@ -252,6 +252,11 @@ function CustomerDashboardInner() {
         isWelcome={isWelcome}
         onConfigured={load}
       />
+
+      {/* SSH Access */}
+      {data.ssh && (
+        <SshAccessCard ssh={data.ssh} copy={copy} copying={copying} />
+      )}
     </div>
   );
 }
@@ -402,6 +407,57 @@ function TelegramSetupCard({ endpointUrl, copy, copying, isWelcome, onConfigured
         <div className="text-[10px] text-zinc-600">
           Need help? Read the <a href="https://docs.cortex-ai.my.id/setup/telegram-bot" target="_blank" className="text-orange-500 hover:underline">setup guide</a> with screenshots.
         </div>
+      </div>
+    </section>
+  );
+}
+
+function SshAccessCard({ ssh, copy, copying }) {
+  const sshCmd = ssh.port
+    ? `ssh -p ${ssh.port} ${ssh.user}@${ssh.host}`
+    : `ssh ${ssh.user}@${ssh.host}`;
+
+  return (
+    <section className="mt-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-300">SSH Access</h2>
+        <span className="text-[10px] text-zinc-500">Container: {ssh.container}</span>
+      </div>
+
+      <div className="space-y-3">
+        {/* SSH Command */}
+        <div>
+          <label className="mb-1 block text-[10px] text-zinc-500">Connect Command</label>
+          <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
+            <code className="flex-1 truncate text-zinc-200">{sshCmd}</code>
+            <button
+              onClick={() => copy(sshCmd, "ssh-cmd")}
+              className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800"
+            >
+              {copying === "ssh-cmd" ? "✓" : "Copy"}
+            </button>
+          </div>
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="mb-1 block text-[10px] text-zinc-500">Password</label>
+          <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
+            <code className="flex-1 text-zinc-200">{ssh.password}</code>
+            <button
+              onClick={() => copy(ssh.password, "ssh-pass")}
+              className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800"
+            >
+              {copying === "ssh-pass" ? "✓" : "Copy"}
+            </button>
+          </div>
+        </div>
+
+        {ssh.port && (
+          <div className="text-[10px] text-zinc-600">
+            Port: {ssh.port} · User: {ssh.user} · Host: {ssh.host}
+          </div>
+        )}
       </div>
     </section>
   );

@@ -66,6 +66,22 @@ export async function GET(request) {
       },
     },
     endpoint: process.env.PUBLIC_API_BASE || "/api/v1",
+    // SSH access info from metadata
+    ssh: (() => {
+      try {
+        const meta = typeof customer.metadata === "string" ? JSON.parse(customer.metadata) : (customer.metadata || {});
+        if (meta.container && meta.sshPassword) {
+          return {
+            host: process.env.PUBLIC_SSH_HOST || process.env.HOSTNAME || "20.24.192.82",
+            port: meta.sshPort || null,
+            user: "hermes",
+            password: meta.sshPassword,
+            container: meta.container,
+          };
+        }
+      } catch {}
+      return null;
+    })(),
   });
 }
 

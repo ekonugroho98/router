@@ -184,7 +184,8 @@ function StatCard({ label, value, tone }) {
 }
 
 const PLAN_PRESETS = {
-  free: { label: "Free (3 hari)", durationDays: 3, dailyLimit: 100, monthlyLimit: 3000 },
+  free: { label: "Free Trial (3 hari)", durationDays: 3, dailyLimit: 100, monthlyLimit: 3000 },
+  daily: { label: "Daily (1 hari — Rp 2rb)", durationDays: 1, dailyLimit: 100, monthlyLimit: 3000 },
   premium: { label: "Premium (30 hari — Rp 49rb)", durationDays: 30, dailyLimit: 1000, monthlyLimit: 30000 },
 };
 

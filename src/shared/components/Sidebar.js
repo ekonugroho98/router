@@ -37,6 +37,7 @@ const systemItems = [
   { href: "/dashboard/skills", label: "Skills", icon: "extension" },
   // ADDON: saas-mt
   { href: "/dashboard/customers", label: "Customers", icon: "groups" },
+  { href: "/dashboard/redeem-codes", label: "Redeem Codes", icon: "confirmation_number" },
 ];
 
 export default function Sidebar({ onClose }) {

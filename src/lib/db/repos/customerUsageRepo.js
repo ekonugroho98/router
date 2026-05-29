@@ -183,6 +183,7 @@ export async function getCustomersUsageSummary(customerIds, { period = "today" }
             SUM(promptTokens + completionTokens) AS tokens
      FROM customerUsage
      WHERE customerId IN (${placeholders}) AND ${filter} AND status = 'success'
+       AND (promptTokens > 0 OR completionTokens > 0)
      GROUP BY customerId`,
     [...customerIds, keyVal]
   );

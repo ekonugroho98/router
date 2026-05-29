@@ -257,6 +257,11 @@ function CustomerDashboardInner() {
       {data.ssh && (
         <SshAccessCard ssh={data.ssh} copy={copy} copying={copying} />
       )}
+
+      {/* Container Resources */}
+      {data.ssh?.container && (
+        <ContainerResourcesCard container={data.ssh.container} />
+      )}
     </div>
   );
 }
@@ -458,6 +463,61 @@ function SshAccessCard({ ssh, copy, copying }) {
             Port: {ssh.port} · User: {ssh.user} · Host: {ssh.host}
           </div>
         )}
+      </div>
+    </section>
+  );
+}
+
+function ContainerResourcesCard({ container }) {
+  const [stats, setStats] = useState(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchStats = () => {
+      fetch("/api/customer/container-stats")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d) setStats(d); else setError(true); })
+        .catch(() => setError(true));
+    };
+    fetchStats();
+    const interval = setInterval(fetchStats, 60000); // refresh every minute
+    return () => clearInterval(interval);
+  }, []);
+
+  if (error || !stats) return null;
+
+  const diskPct = stats.disk?.pct ? parseInt(stats.disk.pct) : 0;
+  const diskColor = diskPct >= 90 ? "bg-red-500" : diskPct >= 70 ? "bg-yellow-500" : "bg-green-500";
+
+  return (
+    <section className="mt-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-zinc-300">Container Resources</h2>
+        <span className="text-[10px] text-zinc-600">Updated: {stats.updatedAt ? new Date(stats.updatedAt).toLocaleTimeString() : "-"}</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {/* Memory */}
+        <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Memory</div>
+          <div className="text-lg font-semibold text-blue-400">{stats.memory || "-"}</div>
+        </div>
+
+        {/* CPU */}
+        <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">CPU Time</div>
+          <div className="text-lg font-semibold text-green-400">{stats.cpuSeconds != null ? `${stats.cpuSeconds}s` : "-"}</div>
+          <div className="text-[10px] text-zinc-600">{stats.processes || 0} processes</div>
+        </div>
+
+        {/* Disk */}
+        <div className="rounded-lg bg-zinc-950 border border-zinc-800 p-3">
+          <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">Disk</div>
+          <div className="text-lg font-semibold text-yellow-400">{stats.disk?.used || "-"} / {stats.disk?.total || "-"}</div>
+          <div className="mt-1 h-1.5 w-full rounded-full bg-zinc-800 overflow-hidden">
+            <div className={`h-full ${diskColor} transition-all`} style={{ width: `${Math.min(100, diskPct)}%` }} />
+          </div>
+        </div>
       </div>
     </section>
   );

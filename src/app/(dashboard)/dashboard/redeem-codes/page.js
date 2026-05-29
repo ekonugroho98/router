@@ -183,14 +183,29 @@ function StatCard({ label, value, tone }) {
   );
 }
 
+const PLAN_PRESETS = {
+  free: { label: "Free (3 hari)", durationDays: 3, dailyLimit: 100, monthlyLimit: 3000 },
+  premium: { label: "Premium (30 hari — Rp 49rb)", durationDays: 30, dailyLimit: 1000, monthlyLimit: 30000 },
+};
+
 function GenerateModal({ onClose, onGenerated }) {
   const [count, setCount] = useState(5);
   const [plan, setPlan] = useState("free");
-  const [durationDays, setDurationDays] = useState(3);
-  const [dailyLimit, setDailyLimit] = useState(100);
-  const [monthlyLimit, setMonthlyLimit] = useState(3000);
+  const [durationDays, setDurationDays] = useState(PLAN_PRESETS.free.durationDays);
+  const [dailyLimit, setDailyLimit] = useState(PLAN_PRESETS.free.dailyLimit);
+  const [monthlyLimit, setMonthlyLimit] = useState(PLAN_PRESETS.free.monthlyLimit);
   const [maxUses, setMaxUses] = useState(1);
   const [label, setLabel] = useState("");
+
+  const applyPreset = (planKey) => {
+    setPlan(planKey);
+    const p = PLAN_PRESETS[planKey];
+    if (p) {
+      setDurationDays(p.durationDays);
+      setDailyLimit(p.dailyLimit);
+      setMonthlyLimit(p.monthlyLimit);
+    }
+  };
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -258,12 +273,12 @@ function GenerateModal({ onClose, onGenerated }) {
               <label className="text-xs text-text-muted mb-1 block">Plan</label>
               <select
                 value={plan}
-                onChange={e => setPlan(e.target.value)}
+                onChange={e => applyPreset(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border-subtle text-sm text-text-main"
               >
-                <option value="free">Free</option>
-                <option value="basic">Basic</option>
-                <option value="pro">Pro</option>
+                {Object.entries(PLAN_PRESETS).map(([key, p]) => (
+                  <option key={key} value={key}>{p.label}</option>
+                ))}
               </select>
             </div>
             <div>

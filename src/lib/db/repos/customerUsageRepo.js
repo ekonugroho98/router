@@ -88,7 +88,8 @@ export async function getCustomerUsageToday(customerId) {
             SUM(completionTokens) AS completionTokens,
             SUM(cost) AS cost
      FROM customerUsage
-     WHERE customerId = ? AND dateKey = ? AND status IN ('success', 'pending')`,
+     WHERE customerId = ? AND dateKey = ? AND status = 'success'
+       AND (promptTokens > 0 OR completionTokens > 0)`,
     [customerId, today]
   );
   return {
@@ -112,7 +113,8 @@ export async function getCustomerUsageThisMonth(customerId) {
             SUM(completionTokens) AS completionTokens,
             SUM(cost) AS cost
      FROM customerUsage
-     WHERE customerId = ? AND monthKey = ? AND status IN ('success', 'pending')`,
+     WHERE customerId = ? AND monthKey = ? AND status = 'success'
+       AND (promptTokens > 0 OR completionTokens > 0)`,
     [customerId, month]
   );
   return {

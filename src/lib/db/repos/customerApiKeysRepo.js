@@ -67,7 +67,7 @@ export async function getCustomerByApiKey(key) {
             c.quotaDailyLimit, c.quotaMonthlyLimit, c.suspendedReason
      FROM customerApiKeys cak
      INNER JOIN customers c ON c.id = cak.customerId
-     WHERE cak.key = ? AND cak.isActive = 1 AND c.isActive = 1`,
+     WHERE cak.key = ? AND cak.isActive = 1`,
     [key]
   );
   if (!row) return null;
@@ -83,6 +83,8 @@ export async function getCustomerByApiKey(key) {
       email: row.customer_email,
       plan: row.plan,
       isActive: row.customer_active === 1,
+      status: row.customer_active === 1 ? "active" : "suspended",
+      suspendedReason: row.suspendedReason,
       quotaDailyLimit: row.quotaDailyLimit,
       quotaMonthlyLimit: row.quotaMonthlyLimit,
     },

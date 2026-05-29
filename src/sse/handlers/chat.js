@@ -78,6 +78,17 @@ export async function handleChat(request, clientRawRequest = null) {
   if (apiKey) {
     tenant = await identifyTenant(apiKey);
     if (tenant) {
+      // Check suspension BEFORE quota
+      if (tenant.customer.status === "suspended") {
+        log.warn("TENANT", `Suspended customer tried to access: ${tenant.customer.email}`);
+        logTenantUsage(tenant, {
+          status: "suspended",
+          errorMessage: "Account suspended",
+          model: modelStr,
+          latencyMs: Date.now() - requestStartMs,
+        });
+        return errorResponse(HTTP_STATUS.FORBIDDEN, "Account suspended. Contact support.");
+      }
       const quota = await checkQuota(tenant.customer);
       if (!quota.ok) {
         log.warn("TENANT", `Quota exceeded for ${tenant.customer.email}: ${quota.reason}`);

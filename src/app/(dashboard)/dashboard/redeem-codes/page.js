@@ -158,6 +158,9 @@ export default function RedeemCodesPage() {
           onGenerated={() => { setShowGenerate(false); load(); }}
         />
       )}
+
+      {/* Claim Tokens Section */}
+      <ClaimTokensSection />
     </div>
   );
 }
@@ -305,6 +308,239 @@ function GenerateModal({ onClose, onGenerated }) {
           </div>
           <Button variant="primary" fullWidth onClick={handleGenerate} disabled={generating}>
             {generating ? "Generating..." : `Generate ${count} Code${count > 1 ? "s" : ""}`}
+          </Button>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+function ClaimTokensSection() {
+  const [tokens, setTokens] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showGenerate, setShowGenerate] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/claim-tokens");
+      const data = await res.json();
+      setTokens(data.tokens || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const claimUrl = (token) => `${baseUrl}/api/public/claim?token=${token}`;
+
+  const copyUrl = (token) => {
+    navigator.clipboard.writeText(claimUrl(token)).catch(() => {});
+    setCopiedId(token);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDeactivate = async (id) => {
+    if (!confirm("Deactivate this token?")) return;
+    await fetch(`/api/admin/claim-tokens?id=${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const getStatus = (t) => {
+    if (!t.isActive) return { label: "Deactivated", color: "text-red-400 bg-red-500/10" };
+    if (t.expiresAt && new Date(t.expiresAt) < new Date()) return { label: "Expired", color: "text-yellow-400 bg-yellow-500/10" };
+    if (t.claimedCount >= t.maxClaims) return { label: "Claimed", color: "text-blue-400 bg-blue-500/10" };
+    return { label: "Active", color: "text-green-400 bg-green-500/10" };
+  };
+
+  return (
+    <>
+      <div className="flex items-center justify-between mt-8">
+        <div>
+          <h2 className="text-xl font-bold">Claim Links</h2>
+          <p className="text-sm text-text-muted">One-time URLs for Lynk.id — customer clicks → gets code → activates</p>
+        </div>
+        <Button icon="add" onClick={() => setShowGenerate(true)}>
+          Generate Links
+        </Button>
+      </div>
+
+      <Card>
+        <div className="text-xs text-text-muted mb-3">
+          {loading ? "Loading..." : `${tokens.length} token${tokens.length !== 1 ? "s" : ""}`}
+        </div>
+
+        {tokens.length === 0 && !loading ? (
+          <div className="py-6 text-center text-sm text-text-muted">
+            No claim links yet. Click <strong>Generate Links</strong> to create.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-xs uppercase tracking-wider text-text-muted">
+                <tr>
+                  <th className="px-3 py-2 text-left">Claim URL</th>
+                  <th className="px-3 py-2 text-left">Plan</th>
+                  <th className="px-3 py-2 text-left">Claims</th>
+                  <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-left">Label</th>
+                  <th className="px-3 py-2 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle">
+                {tokens.map((t) => {
+                  const status = getStatus(t);
+                  return (
+                    <tr key={t.id || t.token} className="hover:bg-surface-2/50 transition-colors">
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => copyUrl(t.token)}
+                          className="font-mono text-xs bg-surface-2 px-2 py-0.5 rounded hover:bg-primary/20 transition-colors cursor-pointer max-w-xs truncate block"
+                          title={claimUrl(t.token)}
+                        >
+                          {copiedId === t.token ? "Copied!" : `...${t.token.slice(-12)}`}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">{t.plan}</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs">{t.claimedCount}/{t.maxClaims}</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${status.color}`}>{status.label}</span>
+                      </td>
+                      <td className="px-3 py-2 text-text-muted text-xs">{t.label || "-"}</td>
+                      <td className="px-3 py-2 text-right space-x-2">
+                        <button onClick={() => copyUrl(t.token)} className="text-xs text-primary hover:text-primary/80 cursor-pointer">Copy</button>
+                        {getStatus(t).label === "Active" && (
+                          <button onClick={() => handleDeactivate(t.id)} className="text-xs text-red-400 hover:text-red-300 cursor-pointer">Deactivate</button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {showGenerate && (
+        <ClaimGenerateModal
+          onClose={() => setShowGenerate(false)}
+          onGenerated={() => { setShowGenerate(false); load(); }}
+          baseUrl={baseUrl}
+        />
+      )}
+    </>
+  );
+}
+
+function ClaimGenerateModal({ onClose, onGenerated, baseUrl }) {
+  const [count, setCount] = useState(10);
+  const [plan, setPlan] = useState("free");
+  const [durationDays, setDurationDays] = useState(PLAN_PRESETS.free.durationDays);
+  const [dailyLimit, setDailyLimit] = useState(PLAN_PRESETS.free.dailyLimit);
+  const [monthlyLimit, setMonthlyLimit] = useState(PLAN_PRESETS.free.monthlyLimit);
+  const [label, setLabel] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [result, setResult] = useState(null);
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  const applyPreset = (planKey) => {
+    setPlan(planKey);
+    const p = PLAN_PRESETS[planKey];
+    if (p) {
+      setDurationDays(p.durationDays);
+      setDailyLimit(p.dailyLimit);
+      setMonthlyLimit(p.monthlyLimit);
+    }
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/admin/claim-tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          count, plan, durationDays,
+          quotaDailyLimit: dailyLimit,
+          quotaMonthlyLimit: monthlyLimit,
+          maxClaims: 1,
+          label: label || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.tokens) setResult(data.tokens);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const copyAll = () => {
+    if (!result) return;
+    const text = result.map((t, i) => `${i + 1}. ${baseUrl}/api/public/claim?token=${t.token}`).join("\n");
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopiedAll(true);
+    setTimeout(() => setCopiedAll(false), 2000);
+  };
+
+  return (
+    <Modal isOpen onClose={onClose} title={result ? "Generated Claim Links" : "Generate Claim Links"}>
+      {result ? (
+        <div className="space-y-3">
+          <div className="bg-surface-2 rounded-lg p-3 font-mono text-xs space-y-1 max-h-60 overflow-y-auto">
+            {result.map((t, i) => (
+              <div key={t.token} className="flex items-center justify-between gap-2">
+                <span className="truncate">{i + 1}. {baseUrl}/api/public/claim?token={t.token}</span>
+                <span className="text-text-muted shrink-0">{t.plan}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" fullWidth onClick={copyAll}>
+              {copiedAll ? "Copied!" : "Copy All Links"}
+            </Button>
+            <Button variant="primary" fullWidth onClick={onGenerated}>Done</Button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs text-text-muted mb-1 block">Count</label>
+              <Input type="number" min={1} max={50} value={count} onChange={e => setCount(Number(e.target.value))} />
+            </div>
+            <div>
+              <label className="text-xs text-text-muted mb-1 block">Plan</label>
+              <select
+                value={plan}
+                onChange={e => applyPreset(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border-subtle text-sm text-text-main"
+              >
+                {Object.entries(PLAN_PRESETS).map(([key, p]) => (
+                  <option key={key} value={key}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-text-muted mb-1 block">Label (optional)</label>
+            <Input placeholder="e.g. Lynk.id free batch" value={label} onChange={e => setLabel(e.target.value)} />
+          </div>
+          <div className="text-xs text-text-muted bg-surface-2 rounded p-2">
+            Each link = one-time use. Customer clicks → gets redeem code → redirects to activation.
+          </div>
+          <Button variant="primary" fullWidth onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating..." : `Generate ${count} Link${count > 1 ? "s" : ""}`}
           </Button>
         </div>
       )}

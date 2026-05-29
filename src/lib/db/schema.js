@@ -263,6 +263,27 @@ export const TABLES = {
     ],
   },
 
+  // ADDON: saas-mt — one-time claim tokens (Lynk.id integration)
+  claimTokens: {
+    columns: {
+      id: "INTEGER PRIMARY KEY AUTOINCREMENT",
+      token: "TEXT NOT NULL UNIQUE",               // random URL-safe string
+      plan: "TEXT NOT NULL DEFAULT 'free'",
+      durationDays: "INTEGER NOT NULL DEFAULT 3",
+      quotaDailyLimit: "INTEGER NOT NULL DEFAULT 300",
+      quotaMonthlyLimit: "INTEGER NOT NULL DEFAULT 9000",
+      maxClaims: "INTEGER NOT NULL DEFAULT 1",
+      claimedCount: "INTEGER NOT NULL DEFAULT 0",
+      isActive: "INTEGER NOT NULL DEFAULT 1",
+      label: "TEXT",
+      createdAt: "TEXT NOT NULL DEFAULT (datetime('now'))",
+      expiresAt: "TEXT",
+    },
+    indexes: [
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_ct_token ON claimTokens(token)",
+    ],
+  },
+
   // ADDON: saas-mt — audit trail for admin actions on customers
   customerAuditLog: {
     columns: {

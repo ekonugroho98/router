@@ -1,13 +1,33 @@
 // ADDON: saas-mt — Customer activation page (redeem code → create account + setup bot)
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function CustomerActivatePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen text-zinc-400">Loading...</div>}>
+      <ActivateInner />
+    </Suspense>
+  );
+}
+
+function ActivateInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillCode = searchParams?.get("code") || "";
+  const prefillError = searchParams?.get("error") || "";
+
   const [step, setStep] = useState(1); // 1=code, 2=account, 3=telegram, 4=done
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(prefillCode);
+
+  // Auto-advance if code is pre-filled from claim link
+  useEffect(() => {
+    if (prefillCode && !prefillError) {
+      // Auto-validate the pre-filled code
+      setCode(prefillCode);
+    }
+  }, [prefillCode, prefillError]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");

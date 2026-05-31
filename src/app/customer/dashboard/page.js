@@ -218,17 +218,6 @@ function CustomerDashboardInner() {
         <ContainerResourcesCard container={data.ssh.container} />
       )}
 
-      {/* Advanced — API Key & Endpoint (collapsed) */}
-      <AdvancedSection
-        endpointUrl={endpointUrl}
-        primaryKey={primaryKey}
-        revealedKey={revealedKey}
-        reveal={reveal}
-        regenerate={regenerate}
-        copy={copy}
-        copying={copying}
-        setRevealedKey={setRevealedKey}
-      />
       </>}
     </div>
   );

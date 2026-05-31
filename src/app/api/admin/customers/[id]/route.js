@@ -140,16 +140,31 @@ export async function DELETE(request, { params }) {
   if (!customer) {
     return NextResponse.json({ error: "Customer not found" }, { status: 404 });
   }
+  // Destroy Incus container if exists
+  let containerDestroyed = false;
+  try {
+    const meta = typeof customer.metadata === "string" ? JSON.parse(customer.metadata || "{}") : (customer.metadata || {});
+    const containerName = meta.container;
+    if (containerName) {
+      const { execSync } = await import("child_process");
+      execSync(`incus delete ${containerName} --force 2>/dev/null || true`, { timeout: 30000 });
+      containerDestroyed = true;
+    }
+  } catch (e) {
+    console.warn(`[admin] Failed to destroy container for ${customer.email}:`, e?.message);
+  }
+
   await deleteCustomer(id);
 
   logAdminAction({
     action: "delete",
     customerId: id,
     customerEmail: customer.email,
+    changes: JSON.stringify({ containerDestroyed }),
     adminIp: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
   }).catch(() => {});
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, containerDestroyed });
 }
 
 function maskKey(key) {

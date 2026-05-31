@@ -83,6 +83,7 @@ export default function CustomersPage() {
                   <th className="px-3 py-2 text-right">Quota</th>
                   <th className="px-3 py-2 text-left">Container</th>
                   <th className="px-3 py-2 text-left">Status</th>
+                  <th className="px-3 py-2 text-left">Expires</th>
                   <th className="px-3 py-2 text-left">Joined</th>
                   <th className="px-3 py-2"></th>
                 </tr>
@@ -125,6 +126,9 @@ export default function CustomersPage() {
                         ) : (
                           <span className="text-xs text-red-500">● Suspended</span>
                         )}
+                      </td>
+                      <td className="px-3 py-2 text-xs">
+                        <ExpiryBadge metadata={c.metadata} />
                       </td>
                       <td className="px-3 py-2 text-xs text-text-muted">
                         {new Date(c.createdAt).toLocaleDateString()}
@@ -199,6 +203,29 @@ function ProvisionBadge({ info }) {
         {label}
       </span>
       {info.error && <span className="max-w-40 truncate text-[10px] text-red-400" title={info.error}>{info.error}</span>}
+    </div>
+  );
+}
+
+function ExpiryBadge({ metadata }) {
+  const meta = metadata || {};
+  if (!meta.expiresAt) return <span className="text-text-muted">-</span>;
+  const exp = new Date(meta.expiresAt);
+  const now = new Date();
+  const diffMs = exp - now;
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const isExpired = diffMs <= 0;
+  const isSoon = !isExpired && diffDays <= 3;
+
+  const color = isExpired ? "text-red-400" : isSoon ? "text-yellow-400" : "text-zinc-400";
+  const label = isExpired
+    ? "Expired"
+    : diffDays === 0 ? "Today" : diffDays === 1 ? "1 day left" : `${diffDays}d left`;
+
+  return (
+    <div className={color}>
+      <div>{exp.toLocaleDateString()}</div>
+      <div className="text-[10px]">{label}</div>
     </div>
   );
 }

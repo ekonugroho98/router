@@ -24,6 +24,7 @@ export async function GET(request) {
     }
 
     const db = await getAdapter();
+    // Exclude health checks (max_tokens=1, message="hi") from success rate
     const rows = db.all(
       `SELECT provider,
               COUNT(*) as total,
@@ -31,6 +32,7 @@ export async function GET(request) {
               SUM(CASE WHEN status != 'success' OR status IS NULL THEN 1 ELSE 0 END) as failed
        FROM requestDetails
        WHERE provider IS NOT NULL ${dateFilter}
+         AND data NOT LIKE '%"max_tokens":1%'
        GROUP BY provider
        ORDER BY total DESC`
     );

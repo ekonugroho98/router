@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdapter } from "@/lib/db/driver.js";
+import { AI_PROVIDERS } from "@/shared/constants/providers";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,19 @@ export async function GET(request) {
        ORDER BY total DESC`
     );
 
-    return NextResponse.json({ providers: rows });
+    // Resolve provider names from provider nodes + AI_PROVIDERS
+    const nodeRows = db.all(`SELECT id, name FROM providerNodes`);
+    const nodeMap = {};
+    for (const n of nodeRows) nodeMap[n.id] = n.name;
+
+    const providers = rows.map(r => {
+      const name = nodeMap[r.provider]
+        || (AI_PROVIDERS[r.provider]?.name)
+        || r.provider;
+      return { ...r, name };
+    });
+
+    return NextResponse.json({ providers });
   } catch (error) {
     console.error("[API] provider-stats error:", error);
     return NextResponse.json({ error: "Failed" }, { status: 500 });

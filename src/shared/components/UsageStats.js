@@ -209,8 +209,7 @@ function ProviderSuccessRate({ period }) {
           const rate = p.total > 0 ? ((p.success / p.total) * 100) : 0;
           const barColor = rate >= 90 ? "bg-green-500" : rate >= 70 ? "bg-yellow-500" : "bg-red-500";
           const textColor = rate >= 90 ? "text-green-400" : rate >= 70 ? "text-yellow-400" : "text-red-400";
-          const providerConfig = AI_PROVIDERS[p.provider];
-          const name = providerConfig?.name || p.provider;
+          const name = p.name || p.provider;
           return (
             <div key={p.provider} className="flex items-center gap-3">
               <div className="w-32 truncate text-sm text-text-main font-medium" title={name}>{name}</div>

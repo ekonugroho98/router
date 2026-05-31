@@ -136,13 +136,24 @@ function CustomerDashboardInner() {
           <h1 className="text-2xl font-bold">Welcome, {customer.displayName || customer.email}</h1>
           <p className="text-xs text-zinc-500 mt-1">Plan: {customer.plan} · Member since {new Date(customer.createdAt).toLocaleDateString()}</p>
         </div>
-        <button
-          onClick={logout}
-          className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-900"
-        >
-          Sign out
-        </button>
+        <div className="flex gap-2">
+          <a
+            href="/customer/pricing"
+            className="rounded-md bg-orange-600 hover:bg-orange-500 px-3 py-1.5 text-xs font-medium text-white transition"
+          >
+            Upgrade / Perpanjang
+          </a>
+          <button
+            onClick={logout}
+            className="rounded-md border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:bg-zinc-900"
+          >
+            Sign out
+          </button>
+        </div>
       </header>
+
+      {/* Plan expiry warning */}
+      <PlanExpiryBanner customer={customer} />
 
       {/* Welcome banner for new signups */}
       {isWelcome && revealedKey && (
@@ -520,6 +531,48 @@ function ContainerResourcesCard({ container }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function PlanExpiryBanner({ customer }) {
+  const meta = customer.metadata || {};
+  const expiresAt = meta.expiresAt;
+  if (!expiresAt) return null;
+
+  const expiry = new Date(expiresAt);
+  const now = new Date();
+  const daysLeft = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24));
+
+  if (daysLeft > 7) return null;
+
+  const isExpired = daysLeft <= 0;
+
+  return (
+    <div className={`mb-6 rounded-lg border px-4 py-3 ${
+      isExpired
+        ? "bg-red-500/10 border-red-500/30"
+        : "bg-yellow-500/10 border-yellow-500/30"
+    }`}>
+      <div className={`text-sm font-semibold ${isExpired ? "text-red-400" : "text-yellow-400"}`}>
+        {isExpired
+          ? "Plan kamu sudah expired!"
+          : `Plan kamu akan expired dalam ${daysLeft} hari`
+        }
+      </div>
+      <div className="mt-1 flex items-center justify-between">
+        <span className="text-xs text-zinc-400">
+          Expired: {expiry.toLocaleDateString("id-ID", { dateStyle: "full" })}
+        </span>
+        <a
+          href="/customer/pricing"
+          className={`rounded-md px-3 py-1 text-xs font-medium text-white transition ${
+            isExpired ? "bg-red-600 hover:bg-red-500" : "bg-yellow-600 hover:bg-yellow-500"
+          }`}
+        >
+          Perpanjang Sekarang
+        </a>
+      </div>
+    </div>
   );
 }
 

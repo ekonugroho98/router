@@ -104,6 +104,11 @@ export {
   createClaimTokens, claimToken, listClaimTokens, deactivateClaimToken, deleteClaimToken, hasAlreadyClaimed, logClaim,
 } from "./repos/claimTokensRepo.js";
 
+export {
+  createOrder, getOrderById, updateOrderPayment, updateOrderStatus,
+  listCustomerOrders, getPendingOrder, listAllOrders,
+} from "./repos/ordersRepo.js";
+
 // Export/import full DB
 export async function exportDb() {
   const db = await getAdapter();

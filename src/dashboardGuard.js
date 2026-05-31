@@ -30,6 +30,7 @@ const PUBLIC_API_PATHS = [
   "/api/version",
   "/api/settings/require-login",
   "/api/customer",       // ADDON: saas-mt — customer auth has its own session/cookie
+  "/api/webhook/pakasir", // ADDON: saas-mt — Pak Kasir payment webhook
   "/install-hermes.sh",  // ADDON: saas-mt — public installer script
 ];
 

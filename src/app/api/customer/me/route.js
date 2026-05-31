@@ -43,6 +43,12 @@ export async function GET(request) {
       quotaMonthlyLimit: customer.quotaMonthlyLimit,
       createdAt: customer.createdAt,
       lastLoginAt: customer.lastLoginAt,
+      metadata: (() => {
+        try {
+          const m = typeof customer.metadata === "string" ? JSON.parse(customer.metadata) : (customer.metadata || {});
+          return { expiresAt: m.expiresAt, durationDays: m.durationDays };
+        } catch { return {}; }
+      })(),
     },
     apiKeys: maskedKeys,
     usage: {

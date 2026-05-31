@@ -284,6 +284,36 @@ export const TABLES = {
     ],
   },
 
+  // ADDON: saas-mt — payment orders (Pak Kasir integration)
+  orders: {
+    columns: {
+      orderId: "TEXT PRIMARY KEY",               // CTX-xxxxx format
+      customerId: "TEXT NOT NULL",               // FK -> customers.id
+      planId: "TEXT NOT NULL",                   // 'daily', 'premium'
+      planName: "TEXT NOT NULL",                 // display name
+      amount: "INTEGER NOT NULL",                // amount in IDR
+      fee: "REAL DEFAULT 0",                     // gateway fee
+      totalPayment: "REAL DEFAULT 0",            // amount + fee
+      paymentMethod: "TEXT NOT NULL",            // 'qris', 'bni_va', etc.
+      plan: "TEXT NOT NULL DEFAULT 'free'",      // plan tier applied on completion
+      durationDays: "INTEGER NOT NULL DEFAULT 1",
+      quotaDailyLimit: "INTEGER NOT NULL DEFAULT 300",
+      quotaMonthlyLimit: "INTEGER NOT NULL DEFAULT 9000",
+      status: "TEXT NOT NULL DEFAULT 'pending'", // 'pending', 'completed', 'canceled', 'expired'
+      paymentNumber: "TEXT",                     // QR string or VA number
+      paymentUrl: "TEXT",                        // hosted payment URL
+      expiredAt: "TEXT",                         // payment expiry
+      completedAt: "TEXT",                       // when payment completed
+      createdAt: "TEXT NOT NULL",
+      updatedAt: "TEXT NOT NULL",
+    },
+    indexes: [
+      "CREATE INDEX IF NOT EXISTS idx_ord_customer ON orders(customerId)",
+      "CREATE INDEX IF NOT EXISTS idx_ord_status ON orders(status)",
+      "CREATE INDEX IF NOT EXISTS idx_ord_created ON orders(createdAt DESC)",
+    ],
+  },
+
   // ADDON: saas-mt — audit trail for admin actions on customers
   customerAuditLog: {
     columns: {

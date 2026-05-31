@@ -213,7 +213,7 @@ function CustomerDashboardInner() {
         <SshAccessCard ssh={data.ssh} copy={copy} copying={copying} />
       )}
 
-      {/* Container Resources */}
+      {/* Hermes Health + Container Resources */}
       {data.ssh?.container && (
         <ContainerResourcesCard container={data.ssh.container} />
       )}
@@ -437,7 +437,7 @@ function ContainerResourcesCard({ container }) {
         .catch(() => setError(true));
     };
     fetchStats();
-    const interval = setInterval(fetchStats, 60000); // refresh every minute
+    const interval = setInterval(fetchStats, 30000); // refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -446,11 +446,37 @@ function ContainerResourcesCard({ container }) {
   const diskPct = stats.disk?.pct ? parseInt(stats.disk.pct) : 0;
   const diskColor = diskPct >= 90 ? "bg-red-500" : diskPct >= 70 ? "bg-yellow-500" : "bg-green-500";
 
+  const containerRunning = stats.state === "running";
+  const hermesActive = stats.hermesStatus === "active";
+  const allHealthy = containerRunning && hermesActive;
+
+  const statusColor = allHealthy ? "text-green-400" : containerRunning ? "text-yellow-400" : "text-red-400";
+  const statusBg = allHealthy ? "bg-green-500/10 border-green-500/30" : containerRunning ? "bg-yellow-500/10 border-yellow-500/30" : "bg-red-500/10 border-red-500/30";
+  const statusDot = allHealthy ? "bg-green-400" : containerRunning ? "bg-yellow-400" : "bg-red-400";
+  const statusText = allHealthy ? "Hermes Online" : containerRunning ? "Hermes Inactive" : "Container Stopped";
+  const statusDesc = allHealthy
+    ? "AI assistant is running and ready"
+    : containerRunning
+    ? "Container is running but Hermes service is not active"
+    : "Container is not running — contact support";
+
   return (
     <section className="mt-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
-      <div className="mb-3 flex items-center justify-between">
+      {/* Hermes Health Status */}
+      <div className={`mb-4 flex items-center gap-3 rounded-lg border p-3 ${statusBg}`}>
+        <span className={`relative flex h-3 w-3`}>
+          {allHealthy && <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${statusDot} opacity-75`} />}
+          <span className={`relative inline-flex h-3 w-3 rounded-full ${statusDot}`} />
+        </span>
+        <div className="flex-1">
+          <div className={`text-sm font-semibold ${statusColor}`}>{statusText}</div>
+          <div className="text-[10px] text-zinc-500">{statusDesc}</div>
+        </div>
+        <span className="text-[10px] text-zinc-600">{stats.updatedAt ? new Date(stats.updatedAt).toLocaleTimeString() : "-"}</span>
+      </div>
+
+      <div className="mb-3">
         <h2 className="text-sm font-semibold text-zinc-300">Container Resources</h2>
-        <span className="text-[10px] text-zinc-600">Updated: {stats.updatedAt ? new Date(stats.updatedAt).toLocaleTimeString() : "-"}</span>
       </div>
 
       <div className="grid grid-cols-3 gap-3">

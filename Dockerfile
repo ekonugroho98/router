@@ -13,6 +13,8 @@ RUN --mount=type=cache,target=/root/.npm \
 
 COPY . ./
 ENV NEXT_TELEMETRY_DISABLED=1
+ARG GOOGLE_CLIENT_ID=""
+ENV GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
 RUN npm run build
 
 FROM ${NODE_IMAGE} AS runner

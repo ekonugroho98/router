@@ -161,26 +161,9 @@ function CustomerDashboardInner() {
         </div>
       </header>
 
-      {/* No active plan — prompt to buy */}
+      {/* No active plan — prompt to buy or claim free trial */}
       {!hasActivePlan && (
-        <section className="mb-6 rounded-2xl border-2 border-dashed border-orange-500/30 bg-orange-500/5 p-8 text-center">
-          <div className="text-4xl mb-4 opacity-80">&#128274;</div>
-          <h2 className="text-xl font-bold text-white mb-2">Belum Ada Plan Aktif</h2>
-          <p className="text-sm text-zinc-400 mb-6">
-            Beli plan untuk mendapatkan API key, quota, dan akses ke Hermes AI Agent di Telegram.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <a
-              href={portalLink("/customer/pricing")}
-              className="rounded-xl bg-orange-600 hover:bg-orange-500 px-8 py-3 text-sm font-semibold text-white transition shadow-lg shadow-orange-600/20"
-            >
-              Lihat Plan & Harga
-            </a>
-          </div>
-          <p className="mt-4 text-[10px] text-zinc-600">
-            Punya kode aktivasi? <a href="/customer/activate" className="text-orange-500 hover:underline">Gunakan di sini</a>
-          </p>
-        </section>
+        <FreeTrialOrBuy onActivated={load} />
       )}
 
       {/* Plan expiry warning (only if has plan) */}
@@ -563,6 +546,90 @@ function ContainerResourcesCard({ container }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function FreeTrialOrBuy({ onActivated }) {
+  const [freeTrial, setFreeTrial] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [claiming, setClaiming] = useState(false);
+  const [error, setError] = useState("");
+  const [claimResult, setClaimResult] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/customer/free-trial")
+      .then(r => r.json())
+      .then(d => { setFreeTrial(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const claimFree = async () => {
+    setClaiming(true); setError("");
+    try {
+      const res = await fetch("/api/customer/free-trial", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error); setClaiming(false); return; }
+      setClaimResult(data);
+      if (data.apiKey) {
+        try { sessionStorage.setItem("cortex_first_key", JSON.stringify(data.apiKey)); } catch {}
+      }
+      setClaiming(false);
+      // Reload dashboard to show activated state
+      setTimeout(() => onActivated(), 1500);
+    } catch (e) { setError(e.message); setClaiming(false); }
+  };
+
+  if (claimResult) {
+    return (
+      <section className="mb-6 rounded-2xl border border-green-500/30 bg-green-500/5 p-8 text-center">
+        <div className="text-4xl mb-3">🎉</div>
+        <h2 className="text-xl font-bold text-green-400 mb-2">Free Trial Aktif!</h2>
+        <p className="text-sm text-zinc-400">Plan {claimResult.plan} selama {claimResult.durationDays} hari. Dashboard akan refresh...</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mb-6 rounded-2xl border-2 border-dashed border-orange-500/30 bg-orange-500/5 p-8 text-center">
+      <div className="text-4xl mb-4 opacity-80">&#128274;</div>
+      <h2 className="text-xl font-bold text-white mb-2">Belum Ada Plan Aktif</h2>
+      <p className="text-sm text-zinc-400 mb-6">
+        Beli plan untuk mendapatkan API key, quota, dan akses ke Hermes AI Agent di Telegram.
+      </p>
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+        {/* Free trial button if available */}
+        {!loading && freeTrial?.available && (
+          <button
+            onClick={claimFree}
+            disabled={claiming}
+            className="rounded-xl bg-green-600 hover:bg-green-500 disabled:opacity-50 px-8 py-3 text-sm font-semibold text-white transition shadow-lg shadow-green-600/20"
+          >
+            {claiming ? "Mengaktifkan..." : `Coba Gratis ${freeTrial.duration} Hari`}
+          </button>
+        )}
+        <a
+          href={portalLink("/customer/pricing")}
+          className="rounded-xl bg-orange-600 hover:bg-orange-500 px-8 py-3 text-sm font-semibold text-white transition shadow-lg shadow-orange-600/20"
+        >
+          Lihat Plan & Harga
+        </a>
+      </div>
+
+      {!loading && freeTrial?.available && (
+        <p className="mt-3 text-[10px] text-zinc-500">
+          Free trial: {freeTrial.duration} hari · {freeTrial.dailyQuota} req/hari · Tersedia {freeTrial.slots} slot
+        </p>
+      )}
+
+      {error && (
+        <p className="mt-3 text-xs text-red-400">{error}</p>
+      )}
+
+      <p className="mt-4 text-[10px] text-zinc-600">
+        Punya kode aktivasi? <a href="/customer/activate" className="text-orange-500 hover:underline">Gunakan di sini</a>
+      </p>
     </section>
   );
 }

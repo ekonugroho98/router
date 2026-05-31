@@ -189,6 +189,48 @@ const PERIODS = [
   { value: "60d", label: "60D" },
 ];
 
+function ProviderSuccessRate({ period }) {
+  const [data, setData] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/usage/provider-stats?period=${period}`)
+      .then(r => r.json())
+      .then(d => setData(d.providers || []))
+      .catch(() => setData([]));
+  }, [period]);
+
+  if (!data || data.length === 0) return null;
+
+  return (
+    <Card className="min-w-0" padding="md">
+      <div className="mb-3 text-xs font-semibold text-text-muted uppercase tracking-wide">Provider Success Rate</div>
+      <div className="space-y-2">
+        {data.map(p => {
+          const rate = p.total > 0 ? ((p.success / p.total) * 100) : 0;
+          const barColor = rate >= 90 ? "bg-green-500" : rate >= 70 ? "bg-yellow-500" : "bg-red-500";
+          const textColor = rate >= 90 ? "text-green-400" : rate >= 70 ? "text-yellow-400" : "text-red-400";
+          const providerConfig = AI_PROVIDERS[p.provider];
+          const name = providerConfig?.name || p.provider;
+          return (
+            <div key={p.provider} className="flex items-center gap-3">
+              <div className="w-32 truncate text-sm text-text-main font-medium" title={name}>{name}</div>
+              <div className="flex-1 h-2 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+                <div className={`h-full ${barColor} transition-all`} style={{ width: `${rate}%` }} />
+              </div>
+              <div className={`w-16 text-right text-sm font-mono font-semibold ${textColor}`}>
+                {rate.toFixed(1)}%
+              </div>
+              <div className="w-20 text-right text-xs text-text-muted">
+                {p.success}/{p.total}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
 export default function UsageStats({ period: periodProp, setPeriod: setPeriodProp, hidePeriodSelector = false } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -451,6 +493,9 @@ export default function UsageStats({ period: periodProp, setPeriod: setPeriodPro
           <RecentRequests requests={stats.recentRequests || []} />
         </div>
       )}
+
+      {/* Provider Success Rate */}
+      {loading ? spinner : <ProviderSuccessRate period={period} />}
 
       {/* Token / Cost chart - sync period */}
       {loading ? spinner : <UsageChart period={period} />}

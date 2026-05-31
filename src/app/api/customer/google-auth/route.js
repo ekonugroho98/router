@@ -73,6 +73,7 @@ export async function POST(request) {
     }, { status: 403 });
   }
 
+  try {
   let customer;
   let isNew = false;
   let apiKey = null;
@@ -157,6 +158,10 @@ export async function POST(request) {
   });
 
   return res;
+  } catch (err) {
+    console.error("[google-auth] Error:", err);
+    return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
+  }
 }
 
 async function notifyAdmin(email, method) {

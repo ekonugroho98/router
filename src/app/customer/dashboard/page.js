@@ -181,77 +181,6 @@ function CustomerDashboardInner() {
 
       {/* Only show API/usage cards if has active plan */}
       {hasActivePlan && <>
-      {/* API endpoint card */}
-      <section className="mb-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-300">API Endpoint</h2>
-        </div>
-        <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
-          <code className="flex-1 truncate text-zinc-200">{endpointUrl}</code>
-          <button
-            onClick={() => copy(endpointUrl, "endpoint")}
-            className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800"
-          >
-            {copying === "endpoint" ? "✓" : "Copy"}
-          </button>
-        </div>
-      </section>
-
-      {/* API key card */}
-      <section className="mb-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-zinc-300">API Key</h2>
-          {primaryKey && (
-            <div className="flex gap-2">
-              <button
-                onClick={() => reveal(primaryKey.id)}
-                className="rounded border border-zinc-700 px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800"
-              >
-                Reveal
-              </button>
-              <button
-                onClick={() => regenerate(primaryKey.id)}
-                className="rounded border border-orange-700 px-2 py-1 text-xs text-orange-400 hover:bg-orange-900/30"
-              >
-                Regenerate
-              </button>
-            </div>
-          )}
-        </div>
-
-        {revealedKey ? (
-          <div className="rounded-md bg-green-500/10 border border-green-500/30 p-3">
-            <div className="mb-2 text-[10px] uppercase tracking-wider text-green-400">
-              ⚠️ Copy now — won&apos;t be shown again
-            </div>
-            <div className="flex items-center gap-2">
-              <code className="flex-1 break-all rounded bg-zinc-950 px-2 py-1.5 font-mono text-xs text-zinc-100">
-                {revealedKey.key}
-              </code>
-              <button
-                onClick={() => copy(revealedKey.key, "key")}
-                className="rounded bg-green-600 hover:bg-green-500 px-3 py-1.5 text-xs font-medium"
-              >
-                {copying === "key" ? "✓ Copied" : "Copy"}
-              </button>
-            </div>
-            <button
-              onClick={() => setRevealedKey(null)}
-              className="mt-2 text-[10px] text-zinc-500 hover:text-zinc-300"
-            >
-              Hide
-            </button>
-          </div>
-        ) : primaryKey ? (
-          <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
-            <code className="flex-1 text-zinc-500">{primaryKey.keyMasked}</code>
-            <span className="text-[10px] text-zinc-600">Last used: {primaryKey.lastUsedAt ? new Date(primaryKey.lastUsedAt).toLocaleString() : "never"}</span>
-          </div>
-        ) : (
-          <div className="text-xs text-zinc-500">No API key yet.</div>
-        )}
-      </section>
-
       {/* Usage quotas */}
       <section className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <QuotaCard
@@ -288,6 +217,18 @@ function CustomerDashboardInner() {
       {data.ssh?.container && (
         <ContainerResourcesCard container={data.ssh.container} />
       )}
+
+      {/* Advanced — API Key & Endpoint (collapsed) */}
+      <AdvancedSection
+        endpointUrl={endpointUrl}
+        primaryKey={primaryKey}
+        revealedKey={revealedKey}
+        reveal={reveal}
+        regenerate={regenerate}
+        copy={copy}
+        copying={copying}
+        setRevealedKey={setRevealedKey}
+      />
       </>}
     </div>
   );
@@ -546,6 +487,73 @@ function ContainerResourcesCard({ container }) {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function AdvancedSection({ endpointUrl, primaryKey, revealedKey, reveal, regenerate, copy, copying, setRevealedKey }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="mt-4 rounded-xl bg-zinc-900/80 border border-zinc-800">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-6 py-4 text-sm font-semibold text-zinc-400 hover:text-zinc-300 transition cursor-pointer"
+      >
+        <span>Advanced (API Key & Endpoint)</span>
+        <span className="text-lg">{open ? "−" : "+"}</span>
+      </button>
+
+      {open && (
+        <div className="px-6 pb-6 space-y-4 border-t border-zinc-800 pt-4">
+          {/* Endpoint */}
+          <div>
+            <div className="text-xs font-medium text-zinc-400 mb-2">API Endpoint</div>
+            <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
+              <code className="flex-1 truncate text-zinc-200">{endpointUrl}</code>
+              <button onClick={() => copy(endpointUrl, "endpoint")} className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800">
+                {copying === "endpoint" ? "✓" : "Copy"}
+              </button>
+            </div>
+          </div>
+
+          {/* API Key */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-zinc-400">API Key</span>
+              {primaryKey && (
+                <div className="flex gap-2">
+                  <button onClick={() => reveal(primaryKey.id)} className="rounded border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400 hover:bg-zinc-800">Reveal</button>
+                  <button onClick={() => regenerate(primaryKey.id)} className="rounded border border-orange-700 px-2 py-0.5 text-xs text-orange-400 hover:bg-orange-900/30">Regenerate</button>
+                </div>
+              )}
+            </div>
+            {revealedKey ? (
+              <div className="rounded-md bg-green-500/10 border border-green-500/30 p-3">
+                <div className="mb-2 text-[10px] uppercase tracking-wider text-green-400">Copy sekarang — tidak akan ditampilkan lagi</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded bg-zinc-950 px-2 py-1.5 font-mono text-xs text-zinc-100">{revealedKey.key}</code>
+                  <button onClick={() => copy(revealedKey.key, "key")} className="rounded bg-green-600 hover:bg-green-500 px-3 py-1.5 text-xs font-medium">
+                    {copying === "key" ? "✓" : "Copy"}
+                  </button>
+                </div>
+                <button onClick={() => setRevealedKey(null)} className="mt-2 text-[10px] text-zinc-500 hover:text-zinc-300">Hide</button>
+              </div>
+            ) : primaryKey ? (
+              <div className="flex items-center gap-2 rounded-md bg-zinc-950 border border-zinc-800 px-3 py-2 font-mono text-sm">
+                <code className="flex-1 text-zinc-500">{primaryKey.keyMasked}</code>
+                <span className="text-[10px] text-zinc-600">Last used: {primaryKey.lastUsedAt ? new Date(primaryKey.lastUsedAt).toLocaleString() : "never"}</span>
+              </div>
+            ) : (
+              <div className="text-xs text-zinc-500">No API key yet.</div>
+            )}
+          </div>
+
+          <div className="text-[10px] text-zinc-600">
+            Gunakan API key ini untuk akses dari Cursor, VS Code, atau app lain yang support OpenAI-compatible API.
+          </div>
+        </div>
+      )}
     </section>
   );
 }

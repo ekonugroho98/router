@@ -30,10 +30,19 @@ const PLANS = [
     price: 49000,
     originalPrice: 149000,
     durationDays: 30,
-    quota: "1.000 req/hari",
+    quota: "500 req/hari",
     description: "Untuk penggunaan harian yang serius",
     popular: true,
-    features: ["30 hari akses penuh", "1.000 request/hari", "Semua model AI", "Telegram bot support", "SSH access ke container", "Priority support"],
+    features: ["30 hari akses penuh", "500 request/hari", "Semua model AI", "Telegram bot support", "SSH access ke container", "Priority support"],
+  },
+  {
+    id: "ultra",
+    name: "Ultra",
+    price: 79000,
+    durationDays: 30,
+    quota: "1.000 req/hari",
+    description: "Kapasitas maksimal untuk power user",
+    features: ["30 hari akses penuh", "1.000 request/hari", "Semua model AI", "Telegram bot support", "SSH access ke container", "Priority support", "Quota tertinggi"],
   },
 ];
 

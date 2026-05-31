@@ -190,7 +190,8 @@ const PLAN_PRESETS = {
   free: { label: "Free Trial (3 hari)", durationDays: 3, dailyLimit: 300, monthlyLimit: 9000 },
   daily: { label: "Daily (1 hari — Rp 2rb)", durationDays: 1, dailyLimit: 300, monthlyLimit: 9000 },
   weekly: { label: "Weekly (7 hari — Rp 12rb)", durationDays: 7, dailyLimit: 300, monthlyLimit: 9000 },
-  premium: { label: "Premium (30 hari — Rp 49rb)", durationDays: 30, dailyLimit: 1000, monthlyLimit: 30000 },
+  premium: { label: "Premium (30 hari — Rp 49rb)", durationDays: 30, dailyLimit: 500, monthlyLimit: 15000 },
+  ultra: { label: "Ultra (30 hari — Rp 79rb)", durationDays: 30, dailyLimit: 1000, monthlyLimit: 30000 },
 };
 
 function GenerateModal({ onClose, onGenerated }) {

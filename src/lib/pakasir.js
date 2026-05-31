@@ -50,11 +50,21 @@ export const PLANS = [
     price: 49000,
     originalPrice: 149000,
     durationDays: 30,
+    quotaDailyLimit: 500,
+    quotaMonthlyLimit: 15000,
+    plan: "pro",
+    description: "30 hari akses, 500 req/hari",
+    popular: true,
+  },
+  {
+    id: "ultra",
+    name: "Ultra",
+    price: 79000,
+    durationDays: 30,
     quotaDailyLimit: 1000,
     quotaMonthlyLimit: 30000,
-    plan: "pro",
+    plan: "ultra",
     description: "30 hari akses, 1000 req/hari",
-    popular: true,
   },
 ];
 

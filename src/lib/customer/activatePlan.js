@@ -96,7 +96,8 @@ async function notifyAdmin(email, { plan, durationDays, isFirstActivation, payme
     lines.push(`Amount: Rp ${(paymentInfo.amount || 0).toLocaleString("id-ID")}`);
   }
   if (isFirstActivation) {
-    lines.push(``, `_API key generated, provisionStatus = pending_`);
+    const pool = ["pro", "ultra", "enterprise"].includes(plan) ? "default" : "temp-pool";
+    lines.push(``, `_API key generated, provisionStatus = pending, pool = ${pool}_`);
   }
 
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {

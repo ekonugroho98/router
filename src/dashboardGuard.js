@@ -179,6 +179,7 @@ const PORTAL_REWRITES = {
   "/dashboard": "/customer/dashboard",
   "/pricing": "/customer/pricing",
   "/orders": "/customer/orders",
+  "/verify-email": "/customer/verify-email",
   // /checkout/* and /api/* are handled by prefix matching below
 };
 

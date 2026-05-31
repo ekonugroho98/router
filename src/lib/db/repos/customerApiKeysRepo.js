@@ -64,7 +64,7 @@ export async function getCustomerByApiKey(key) {
   const db = await getAdapter();
   const row = db.get(
     `SELECT cak.*, c.id AS customer_id, c.email AS customer_email, c.plan, c.isActive AS customer_active,
-            c.quotaDailyLimit, c.quotaMonthlyLimit, c.suspendedReason
+            c.quotaDailyLimit, c.quotaMonthlyLimit, c.suspendedReason, c.emailVerified
      FROM customerApiKeys cak
      INNER JOIN customers c ON c.id = cak.customerId
      WHERE cak.key = ? AND cak.isActive = 1`,
@@ -87,6 +87,7 @@ export async function getCustomerByApiKey(key) {
       suspendedReason: row.suspendedReason,
       quotaDailyLimit: row.quotaDailyLimit,
       quotaMonthlyLimit: row.quotaMonthlyLimit,
+      emailVerified: row.emailVerified === 1,
     },
   };
 }

@@ -41,6 +41,7 @@ export async function GET(request) {
       plan: customer.plan,
       quotaDailyLimit: customer.quotaDailyLimit,
       quotaMonthlyLimit: customer.quotaMonthlyLimit,
+      emailVerified: customer.emailVerified,
       createdAt: customer.createdAt,
       lastLoginAt: customer.lastLoginAt,
       metadata: (() => {

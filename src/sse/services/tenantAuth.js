@@ -41,6 +41,12 @@ export async function identifyTenant(apiKey) {
     return null;
   }
 
+  // Block unverified email accounts
+  if (!result.customer.emailVerified) {
+    log.warn("TENANT", `Blocked unverified email: ${result.customer.email}`);
+    return { kind: "customer_unverified", customer: result.customer };
+  }
+
   // Touch lastUsedAt (throttled internally)
   touchKeyUsed(result.apiKey.id).catch(() => {}); // fire-and-forget
 

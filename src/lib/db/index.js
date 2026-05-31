@@ -69,8 +69,9 @@ export {
 
 // ADDON: saas-mt — Multi-tenant customer system
 export {
-  createCustomer, getCustomerById, getCustomerByEmail, getCustomerForAuth,
-  listCustomers, countCustomers, updateCustomer, deleteCustomer, touchLastLogin,
+  createCustomer, getCustomerById, getCustomerByEmail, getCustomerByGoogleId,
+  getCustomerForAuth, listCustomers, countCustomers, updateCustomer,
+  deleteCustomer, touchLastLogin,
 } from "./repos/customersRepo.js";
 
 export {

@@ -77,6 +77,9 @@ export async function handleChat(request, clientRawRequest = null) {
   const requestStartMs = Date.now();
   if (apiKey) {
     tenant = await identifyTenant(apiKey);
+    if (tenant?.kind === "customer_unverified") {
+      return errorResponse(HTTP_STATUS.FORBIDDEN, "Email belum diverifikasi. Silakan verifikasi email di dashboard.");
+    }
     if (tenant) {
       // Check suspension BEFORE quota
       if (tenant.customer.status === "suspended") {

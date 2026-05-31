@@ -37,6 +37,11 @@ function CustomerDashboardInner() {
         setLoading(false);
         return;
       }
+      // Redirect to verify-email if not verified
+      if (json?.customer && !json.customer.emailVerified) {
+        router.replace(portalLink("/customer/verify-email"));
+        return;
+      }
       setData(json);
       setLoading(false);
     } catch (e) {

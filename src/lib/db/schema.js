@@ -156,7 +156,9 @@ export const TABLES = {
     columns: {
       id: "TEXT PRIMARY KEY",
       email: "TEXT UNIQUE NOT NULL",
-      passwordHash: "TEXT NOT NULL",            // bcrypt hash
+      passwordHash: "TEXT",                       // bcrypt hash (null for Google-only users)
+      googleId: "TEXT",                           // Google sub ID (for OAuth users)
+      emailVerified: "INTEGER DEFAULT 0",         // 1 = verified (Google auto-verified)
       displayName: "TEXT",
       plan: "TEXT DEFAULT 'free'",              // 'free', 'pro', 'enterprise'
       quotaDailyLimit: "INTEGER DEFAULT 1000",  // req/day cap (0 = unlimited)

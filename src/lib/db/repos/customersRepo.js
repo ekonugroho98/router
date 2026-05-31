@@ -8,10 +8,11 @@ function nowIso() {
 
 function rowToCustomer(row) {
   if (!row) return null;
-  const { passwordHash, metadata, isActive, ...rest } = row;
+  const { passwordHash, metadata, isActive, emailVerified, ...rest } = row;
   return {
     ...rest,
     isActive: isActive === 1 || isActive === true,
+    emailVerified: emailVerified === 1 || emailVerified === true,
     metadata: metadata ? safeJsonParse(metadata) : null,
   };
 }
@@ -27,7 +28,9 @@ function safeJsonParse(s) {
  */
 export async function createCustomer({
   email,
-  passwordHash,
+  passwordHash = null,
+  googleId = null,
+  emailVerified = false,
   displayName = null,
   plan = "free",
   quotaDailyLimit = 1000,
@@ -38,12 +41,14 @@ export async function createCustomer({
   const id = uuidv4();
   const now = nowIso();
   db.run(
-    `INSERT INTO customers (id, email, passwordHash, displayName, plan, quotaDailyLimit, quotaMonthlyLimit, isActive, metadata, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+    `INSERT INTO customers (id, email, passwordHash, googleId, emailVerified, displayName, plan, quotaDailyLimit, quotaMonthlyLimit, isActive, metadata, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     [
       id,
       email.toLowerCase(),
       passwordHash,
+      googleId,
+      emailVerified ? 1 : 0,
       displayName,
       plan,
       quotaDailyLimit,
@@ -54,6 +59,16 @@ export async function createCustomer({
     ]
   );
   return getCustomerById(id);
+}
+
+/**
+ * Find customer by Google ID.
+ */
+export async function getCustomerByGoogleId(googleId) {
+  if (!googleId) return null;
+  const db = await getAdapter();
+  const row = db.get(`SELECT * FROM customers WHERE googleId = ?`, [googleId]);
+  return rowToCustomer(row);
 }
 
 export async function getCustomerById(id) {
@@ -118,6 +133,7 @@ export async function updateCustomer(id, patch) {
   const allowed = [
     "displayName", "plan", "quotaDailyLimit", "quotaMonthlyLimit",
     "isActive", "suspendedReason", "metadata", "passwordHash", "lastLoginAt",
+    "emailVerified", "googleId",
   ];
   const sets = [];
   const params = [];
@@ -127,7 +143,7 @@ export async function updateCustomer(id, patch) {
       const v = patch[k];
       if (k === "metadata" && v != null && typeof v === "object") {
         params.push(JSON.stringify(v));
-      } else if (k === "isActive") {
+      } else if (k === "isActive" || k === "emailVerified") {
         params.push(v ? 1 : 0);
       } else {
         params.push(v);

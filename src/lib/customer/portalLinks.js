@@ -18,6 +18,7 @@ export function portalLink(path) {
     "/customer/dashboard": "/dashboard",
     "/customer/pricing": "/pricing",
     "/customer/orders": "/orders",
+    "/customer/verify-email": "/verify-email",
   };
   // Exact match
   if (map[path]) return map[path];

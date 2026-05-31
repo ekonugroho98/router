@@ -74,6 +74,7 @@ export async function PUT(request) {
 
   if (!code) return NextResponse.json({ error: "Kode aktivasi diperlukan" }, { status: 400 });
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return NextResponse.json({ error: "Email tidak valid" }, { status: 400 });
+  if (!email.endsWith("@gmail.com")) return NextResponse.json({ error: "Hanya email @gmail.com yang diperbolehkan" }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "Password minimal 8 karakter" }, { status: 400 });
 
   // Check email uniqueness

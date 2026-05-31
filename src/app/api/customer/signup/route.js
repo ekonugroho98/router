@@ -36,10 +36,14 @@ export async function POST(request) {
 
   // Validation
   if (!EMAIL_RE.test(email)) {
-    return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+    return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
+  }
+  // Only allow @gmail.com to prevent abuse with disposable/GSuite emails
+  if (!email.endsWith("@gmail.com")) {
+    return NextResponse.json({ error: "Hanya email @gmail.com yang diperbolehkan. Atau gunakan Sign in with Google." }, { status: 400 });
   }
   if (password.length < 8) {
-    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 });
+    return NextResponse.json({ error: "Password minimal 8 karakter" }, { status: 400 });
   }
 
   // Check uniqueness
@@ -51,10 +55,11 @@ export async function POST(request) {
   // Hash password (bcrypt rounds = 10 — balanced security/speed)
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Create customer (free plan default)
+  // Create customer (free plan default, email NOT verified yet)
   const customer = await createCustomer({
     email,
     passwordHash,
+    emailVerified: false,
     displayName,
     plan: "free",
     quotaDailyLimit: 1000,

@@ -1,12 +1,12 @@
 // ADDON: saas-mt — Google OAuth login/signup
-// Receives Google id_token from frontend, verifies, creates/logs in customer
+// Creates account ONLY on first signup — no API key, no quota.
+// User must purchase a plan to get API key + quota.
 import { NextResponse } from "next/server";
 import {
   getCustomerByEmail,
   getCustomerByGoogleId,
   createCustomer,
   updateCustomer,
-  createCustomerApiKey,
   createCustomerSession,
   touchLastLogin,
 } from "@/lib/db";
@@ -20,9 +20,6 @@ const googleLimiter = rateLimit({ windowMs: 15 * 60_000, max: 20, message: "Too 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/**
- * Verify Google id_token via Google's tokeninfo endpoint.
- */
 async function verifyGoogleToken(idToken) {
   const res = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, {
     signal: AbortSignal.timeout(10000),
@@ -30,11 +27,8 @@ async function verifyGoogleToken(idToken) {
   if (!res.ok) return null;
   const payload = await res.json();
 
-  // Verify audience matches our client ID
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (clientId && payload.aud !== clientId) return null;
-
-  // Must have email
   if (!payload.email) return null;
 
   return {
@@ -60,13 +54,12 @@ export async function POST(request) {
     return NextResponse.json({ error: "idToken required" }, { status: 400 });
   }
 
-  // Verify with Google
   const googleUser = await verifyGoogleToken(idToken);
   if (!googleUser) {
     return NextResponse.json({ error: "Invalid Google token" }, { status: 401 });
   }
 
-  // Only allow @gmail.com — block GSuite/Workspace emails to prevent abuse
+  // Only allow @gmail.com
   if (!googleUser.email.endsWith("@gmail.com")) {
     return NextResponse.json({
       error: "Hanya akun @gmail.com yang diperbolehkan. Email Google Workspace tidak didukung.",
@@ -74,101 +67,90 @@ export async function POST(request) {
   }
 
   try {
-  let customer;
-  let isNew = false;
-  let apiKey = null;
+    let customer;
+    let isNew = false;
 
-  // Check if customer exists by Google ID
-  customer = await getCustomerByGoogleId(googleUser.googleId);
+    // Check if customer exists by Google ID
+    customer = await getCustomerByGoogleId(googleUser.googleId);
 
-  if (!customer) {
-    // Check if customer exists by email (could have signed up with password before)
-    customer = await getCustomerByEmail(googleUser.email);
-
-    if (customer) {
-      // Link Google ID to existing account + mark email as verified
-      await updateCustomer(customer.id, {
-        googleId: googleUser.googleId,
-        emailVerified: true,
-        displayName: customer.displayName || googleUser.name,
-      });
+    if (!customer) {
+      // Check by email (could have signed up with password before)
       customer = await getCustomerByEmail(googleUser.email);
-    } else {
-      // Create new account (auto-verified, free trial)
-      customer = await createCustomer({
-        email: googleUser.email,
-        passwordHash: null, // no password for Google-only users
-        googleId: googleUser.googleId,
-        emailVerified: true,
-        displayName: googleUser.name,
-        plan: "free",
-        quotaDailyLimit: 1000,
-        quotaMonthlyLimit: 30000,
-        metadata: {
-          authMethod: "google",
-          picture: googleUser.picture,
-        },
-      });
-      isNew = true;
 
-      // Auto-generate first API key
-      apiKey = await createCustomerApiKey({
-        customerId: customer.id,
-        name: "default",
-      });
+      if (customer) {
+        // Link Google ID to existing account + verify email
+        await updateCustomer(customer.id, {
+          googleId: googleUser.googleId,
+          emailVerified: true,
+          displayName: customer.displayName || googleUser.name,
+        });
+        customer = await getCustomerByEmail(googleUser.email);
+      } else {
+        // Create new account — NO API key, NO quota, NO plan
+        customer = await createCustomer({
+          email: googleUser.email,
+          passwordHash: null,
+          googleId: googleUser.googleId,
+          emailVerified: true,
+          displayName: googleUser.name,
+          plan: "none",           // no active plan
+          quotaDailyLimit: 0,     // no quota until plan purchased
+          quotaMonthlyLimit: 0,
+          metadata: {
+            authMethod: "google",
+            picture: googleUser.picture,
+          },
+        });
+        isNew = true;
 
-      // Notify admin
-      notifyAdmin(googleUser.email, "google").catch(() => {});
+        notifyAdmin(googleUser.email).catch(() => {});
+      }
     }
-  }
 
-  if (!customer.isActive) {
-    return NextResponse.json({ error: "Akun dinonaktifkan" }, { status: 403 });
-  }
+    if (!customer.isActive) {
+      return NextResponse.json({ error: "Akun dinonaktifkan" }, { status: 403 });
+    }
 
-  // Update last login
-  touchLastLogin(customer.id).catch(() => {});
+    touchLastLogin(customer.id).catch(() => {});
 
-  // Create session
-  const session = await createCustomerSession({
-    customerId: customer.id,
-    userAgent: request.headers.get("user-agent"),
-    ipAddress: getClientIp(request),
-  });
+    const session = await createCustomerSession({
+      customerId: customer.id,
+      userAgent: request.headers.get("user-agent"),
+      ipAddress: getClientIp(request),
+    });
 
-  const res = NextResponse.json({
-    success: true,
-    isNew,
-    customer: {
-      id: customer.id,
-      email: customer.email,
-      displayName: customer.displayName,
-      plan: customer.plan,
-      emailVerified: true,
-    },
-    ...(apiKey ? { apiKey: { id: apiKey.id, key: apiKey.key, name: apiKey.name } } : {}),
-  });
+    const res = NextResponse.json({
+      success: true,
+      isNew,
+      customer: {
+        id: customer.id,
+        email: customer.email,
+        displayName: customer.displayName,
+        plan: customer.plan,
+        emailVerified: customer.emailVerified,
+      },
+    });
 
-  res.cookies.set(SESSION_COOKIE, session.cookieValue, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
-    path: "/",
-  });
+    res.cookies.set(SESSION_COOKIE, session.cookieValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_TTL_DAYS * 24 * 60 * 60,
+      path: "/",
+    });
 
-  return res;
+    return res;
   } catch (err) {
     console.error("[google-auth] Error:", err);
     return NextResponse.json({ error: err?.message || "Internal server error" }, { status: 500 });
   }
 }
 
-async function notifyAdmin(email, method) {
+async function notifyAdmin(email) {
   const token = process.env.ADMIN_TG_BOT_TOKEN;
   const chatId = process.env.ADMIN_TG_CHAT_ID;
   if (!token || !chatId) return;
-  const msg = `*Signup Baru (${method})*\n\nEmail: \`${email}\``;
+  const msg = `*Signup Baru (Google)*\n\nEmail: \`${email}\`\nPlan: none (belum beli)`;
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

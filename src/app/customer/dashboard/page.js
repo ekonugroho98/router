@@ -134,20 +134,23 @@ function CustomerDashboardInner() {
   const { customer, apiKeys, usage, quotas, endpoint } = data;
   const primaryKey = apiKeys?.[0];
   const endpointUrl = endpoint?.startsWith("http") ? endpoint : `${window.location.origin}${endpoint || "/api/v1"}`;
+  const hasActivePlan = customer.plan && customer.plan !== "none";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Welcome, {customer.displayName || customer.email}</h1>
-          <p className="text-xs text-zinc-500 mt-1">Plan: {customer.plan} · Member since {new Date(customer.createdAt).toLocaleDateString()}</p>
+          <p className="text-xs text-zinc-500 mt-1">
+            {hasActivePlan ? `Plan: ${customer.plan}` : "Belum ada plan aktif"} · Member since {new Date(customer.createdAt).toLocaleDateString()}
+          </p>
         </div>
         <div className="flex gap-2">
           <a
             href={portalLink("/customer/pricing")}
             className="rounded-md bg-orange-600 hover:bg-orange-500 px-3 py-1.5 text-xs font-medium text-white transition"
           >
-            Upgrade / Perpanjang
+            {hasActivePlan ? "Perpanjang" : "Beli Plan"}
           </a>
           <button
             onClick={logout}
@@ -158,20 +161,43 @@ function CustomerDashboardInner() {
         </div>
       </header>
 
-      {/* Plan expiry warning */}
-      <PlanExpiryBanner customer={customer} />
+      {/* No active plan — prompt to buy */}
+      {!hasActivePlan && (
+        <section className="mb-6 rounded-2xl border-2 border-dashed border-orange-500/30 bg-orange-500/5 p-8 text-center">
+          <div className="text-4xl mb-4 opacity-80">&#128274;</div>
+          <h2 className="text-xl font-bold text-white mb-2">Belum Ada Plan Aktif</h2>
+          <p className="text-sm text-zinc-400 mb-6">
+            Beli plan untuk mendapatkan API key, quota, dan akses ke Hermes AI Agent di Telegram.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a
+              href={portalLink("/customer/pricing")}
+              className="rounded-xl bg-orange-600 hover:bg-orange-500 px-8 py-3 text-sm font-semibold text-white transition shadow-lg shadow-orange-600/20"
+            >
+              Lihat Plan & Harga
+            </a>
+          </div>
+          <p className="mt-4 text-[10px] text-zinc-600">
+            Punya kode aktivasi? <a href="/customer/activate" className="text-orange-500 hover:underline">Gunakan di sini</a>
+          </p>
+        </section>
+      )}
 
-      {/* Welcome banner for new signups */}
+      {/* Plan expiry warning (only if has plan) */}
+      {hasActivePlan && <PlanExpiryBanner customer={customer} />}
+
+      {/* Welcome banner for first-time plan activation */}
       {isWelcome && revealedKey && (
         <div className="mb-6 rounded-lg bg-green-500/10 border border-green-500/30 p-4">
-          <div className="text-sm font-semibold text-green-400">🎉 Account created!</div>
+          <div className="text-sm font-semibold text-green-400">Plan aktif! API key sudah dibuat.</div>
           <div className="mt-1 text-xs text-zinc-300">
-            Your API key has been generated. <strong>Copy it now</strong> — it won&apos;t be shown again
-            (you can always regenerate from below).
+            <strong>Copy API key sekarang</strong> — tidak akan ditampilkan lagi (bisa regenerate di bawah).
           </div>
         </div>
       )}
 
+      {/* Only show API/usage cards if has active plan */}
+      {hasActivePlan && <>
       {/* API endpoint card */}
       <section className="mb-4 rounded-xl bg-zinc-900/80 border border-zinc-800 p-6">
         <div className="mb-3 flex items-center justify-between">
@@ -279,6 +305,7 @@ function CustomerDashboardInner() {
       {data.ssh?.container && (
         <ContainerResourcesCard container={data.ssh.container} />
       )}
+      </>}
     </div>
   );
 }

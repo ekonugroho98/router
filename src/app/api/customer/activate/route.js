@@ -7,11 +7,11 @@ import {
   redeemCode,
   getCustomerByEmail,
   createCustomer,
-  createCustomerApiKey,
   createCustomerSession,
   updateCustomer,
   getCustomerById,
 } from "@/lib/db";
+import { activatePlan } from "@/lib/customer/activatePlan";
 import { rateLimit, getClientIp } from "@/lib/customer/rateLimit";
 
 const SESSION_COOKIE = "cortex_session";
@@ -87,28 +87,28 @@ export async function PUT(request) {
   if (codeResult.error) return NextResponse.json({ error: codeResult.error }, { status: 400 });
   if (!codeResult.valid) return NextResponse.json({ error: "Kode tidak valid" }, { status: 400 });
 
-  // Calculate expiry
-  const expiresAt = new Date(Date.now() + codeResult.durationDays * 24 * 60 * 60 * 1000).toISOString();
-
-  // Create customer
+  // Create customer account first (no plan, no API key)
   const passwordHash = await bcrypt.hash(password, 10);
   const customer = await createCustomer({
     email,
     passwordHash,
+    emailVerified: true, // redeem code = trusted
     displayName,
-    plan: codeResult.plan,
-    quotaDailyLimit: codeResult.quotaDailyLimit,
-    quotaMonthlyLimit: codeResult.quotaMonthlyLimit,
-    metadata: {
-      activatedWith: code,
-      expiresAt,
-      durationDays: codeResult.durationDays,
-      provisionStatus: "pending",
-    },
+    plan: "none",
+    quotaDailyLimit: 0,
+    quotaMonthlyLimit: 0,
+    metadata: { activatedWith: code },
   });
 
-  // Create API key
-  const apiKey = await createCustomerApiKey({ customerId: customer.id, name: "default" });
+  // Activate plan (generates API key + sets quota)
+  const activation = await activatePlan({
+    customerId: customer.id,
+    plan: codeResult.plan,
+    durationDays: codeResult.durationDays,
+    quotaDailyLimit: codeResult.quotaDailyLimit,
+    quotaMonthlyLimit: codeResult.quotaMonthlyLimit,
+  });
+  const apiKey = activation.apiKey;
 
   // Setup Telegram if provided
   let botUsername = null;
@@ -132,12 +132,6 @@ export async function PUT(request) {
     } catch {}
   }
 
-  // Notify admin via Telegram
-  notifyAdmin({
-    email, plan: codeResult.plan, durationDays: codeResult.durationDays,
-    code, botUsername, customerId: customer.id, apiKey: apiKey.key,
-  }).catch(() => {});
-
   // Create session
   const session = await createCustomerSession({
     customerId: customer.id,
@@ -145,10 +139,12 @@ export async function PUT(request) {
     ipAddress: getClientIp(request),
   });
 
+  const expiresAt = activation.customer?.metadata?.expiresAt;
+
   const res = NextResponse.json({
     success: true,
-    customer: { id: customer.id, email: customer.email, plan: customer.plan },
-    apiKey: { id: apiKey.id, key: apiKey.key, name: apiKey.name },
+    customer: { id: customer.id, email: customer.email, plan: codeResult.plan },
+    apiKey: apiKey ? { id: apiKey.id, key: apiKey.key, name: apiKey.name } : null,
     botUsername,
     expiresAt,
     durationDays: codeResult.durationDays,

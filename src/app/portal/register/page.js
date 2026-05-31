@@ -40,14 +40,8 @@ function RegisterInner() {
         setSubmitting(false);
         return;
       }
-      if (data.apiKey) {
-        try { sessionStorage.setItem("cortex_first_key", JSON.stringify(data.apiKey)); } catch {}
-      }
-      if (plan && plan !== "free") {
-        router.push("/pricing");
-      } else {
-        router.push("/dashboard?welcome=1");
-      }
+      // Google signup → go to dashboard (will show "buy plan" prompt)
+      router.push("/dashboard");
     } catch (err) {
       setError(err?.message || String(err));
       setSubmitting(false);

@@ -1,10 +1,11 @@
 // ADDON: saas-mt — Customer signup endpoint
+// Creates account ONLY — no API key, no quota, no plan.
+// User must purchase a plan or claim a code to get API key + quota.
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import {
   getCustomerByEmail,
   createCustomer,
-  createCustomerApiKey,
   createCustomerSession,
 } from "@/lib/db";
 import { rateLimit, getClientIp } from "@/lib/customer/rateLimit";
@@ -38,7 +39,6 @@ export async function POST(request) {
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Format email tidak valid" }, { status: 400 });
   }
-  // Only allow @gmail.com to prevent abuse with disposable/GSuite emails
   if (!email.endsWith("@gmail.com")) {
     return NextResponse.json({ error: "Hanya email @gmail.com yang diperbolehkan. Atau gunakan Sign in with Google." }, { status: 400 });
   }
@@ -49,44 +49,32 @@ export async function POST(request) {
   // Check uniqueness
   const existing = await getCustomerByEmail(email);
   if (existing) {
-    return NextResponse.json({ error: "Email already registered" }, { status: 409 });
+    return NextResponse.json({ error: "Email sudah terdaftar" }, { status: 409 });
   }
 
-  // Hash password (bcrypt rounds = 10 — balanced security/speed)
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Create customer (free plan default, email NOT verified yet)
+  // Create account ONLY — no plan, no quota, no API key
   const customer = await createCustomer({
     email,
     passwordHash,
     emailVerified: false,
     displayName,
-    plan: "free",
-    quotaDailyLimit: 1000,
-    quotaMonthlyLimit: 30000,
-  });
-
-  // Auto-generate first API key
-  const apiKey = await createCustomerApiKey({
-    customerId: customer.id,
-    name: "default",
+    plan: "none",           // no active plan
+    quotaDailyLimit: 0,     // no quota until plan purchased
+    quotaMonthlyLimit: 0,
   });
 
   // Notify admin
-  notifyAdminSignup(email, customer.plan).catch(() => {});
+  notifyAdminSignup(email).catch(() => {});
 
   // Create session + cookie
-  const userAgent = request.headers.get("user-agent") || null;
-  const ipAddress = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    || request.headers.get("x-real-ip")
-    || null;
   const session = await createCustomerSession({
     customerId: customer.id,
-    userAgent,
-    ipAddress,
+    userAgent: request.headers.get("user-agent"),
+    ipAddress: getClientIp(request),
   });
 
-  // Response with session cookie + first API key revealed once (clipboard-friendly)
   const res = NextResponse.json({
     success: true,
     customer: {
@@ -94,11 +82,6 @@ export async function POST(request) {
       email: customer.email,
       displayName: customer.displayName,
       plan: customer.plan,
-    },
-    apiKey: {
-      id: apiKey.id,
-      key: apiKey.key, // ← revealed once on signup
-      name: apiKey.name,
     },
   });
 
@@ -113,11 +96,11 @@ export async function POST(request) {
   return res;
 }
 
-async function notifyAdminSignup(email, plan) {
+async function notifyAdminSignup(email) {
   const token = process.env.ADMIN_TG_BOT_TOKEN;
   const chatId = process.env.ADMIN_TG_CHAT_ID;
   if (!token || !chatId) return;
-  const msg = `📝 *Signup Baru (tanpa kode)*\n\n📧 Email: \`${email}\`\n📋 Plan: ${plan}`;
+  const msg = `*Signup Baru*\n\nEmail: \`${email}\`\nPlan: none (belum beli)`;
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

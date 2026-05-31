@@ -30,7 +30,13 @@ function CheckoutInner() {
       if (!res.ok) { setError(data.error); setLoading(false); return; }
       setOrder(data.order);
       setLoading(false);
-      if (data.activated) setActivated(true);
+      if (data.activated) {
+        setActivated(true);
+        // Store API key if first activation
+        if (data.apiKey?.key) {
+          try { sessionStorage.setItem("cortex_first_key", JSON.stringify(data.apiKey)); } catch {}
+        }
+      }
       if (data.order?.status === "completed" || data.order?.status === "canceled") {
         clearInterval(pollRef.current);
       }
@@ -88,7 +94,7 @@ function CheckoutInner() {
               Plan <strong>{order.planName}</strong> sudah aktif selama {order.durationDays} hari.
             </p>
             <button
-              onClick={() => router.push(portalLink("/customer/dashboard"))}
+              onClick={() => router.push(portalLink("/customer/dashboard") + "?welcome=1")}
               className="rounded-xl bg-green-600 hover:bg-green-500 px-6 py-3 text-sm font-semibold text-white transition"
             >
               Ke Dashboard

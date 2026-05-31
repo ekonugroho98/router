@@ -23,20 +23,15 @@ export default function UsagePage() {
 
 function UsageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
 
   const [period, setPeriod] = useState("today");
 
   const tabFromUrl = searchParams.get("tab");
-  const activeTab = tabFromUrl && ["overview", "logs", "details"].includes(tabFromUrl)
-    ? tabFromUrl
-    : "overview";
+  const initialTab = tabFromUrl && ["overview", "details"].includes(tabFromUrl) ? tabFromUrl : "overview";
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const handleTabChange = (value) => {
-    if (value === activeTab) return;
-    const params = new URLSearchParams(searchParams);
-    params.set("tab", value);
-    router.push(`/dashboard/usage?${params.toString()}`, { scroll: false });
+    setActiveTab(value);
   };
 
   return (

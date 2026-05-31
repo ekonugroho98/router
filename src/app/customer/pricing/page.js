@@ -16,6 +16,15 @@ const PLANS = [
     features: ["1 hari akses penuh", "300 request/hari", "Semua model AI", "Telegram bot support"],
   },
   {
+    id: "weekly",
+    name: "Weekly",
+    price: 12000,
+    durationDays: 7,
+    quota: "300 req/hari",
+    description: "Akses seminggu penuh dengan harga hemat",
+    features: ["7 hari akses penuh", "300 request/hari", "Semua model AI", "Telegram bot support"],
+  },
+  {
     id: "premium",
     name: "Premium",
     price: 49000,

@@ -35,6 +35,16 @@ export const PLANS = [
     description: "1 hari akses, 300 req/hari",
   },
   {
+    id: "weekly",
+    name: "Weekly",
+    price: 12000,
+    durationDays: 7,
+    quotaDailyLimit: 300,
+    quotaMonthlyLimit: 9000,
+    plan: "free",
+    description: "7 hari akses, 300 req/hari",
+  },
+  {
     id: "premium",
     name: "Premium",
     price: 49000,

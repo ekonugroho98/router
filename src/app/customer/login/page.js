@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isPortalDomain, portalLink } from "@/lib/customer/portalLinks";
 
 export default function CustomerLoginPage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function CustomerLoginPage() {
         setSubmitting(false);
         return;
       }
-      router.push("/customer/dashboard");
+      router.push(portalLink("/customer/dashboard"));
     } catch (err) {
       setError(err?.message || String(err));
       setSubmitting(false);
@@ -83,9 +84,9 @@ export default function CustomerLoginPage() {
         </form>
 
         <p className="mt-6 text-center text-xs text-zinc-500">
-          Don&apos;t have an account?{" "}
-          <a href="/customer/signup" className="text-orange-500 hover:underline">
-            Sign up
+          Belum punya akun?{" "}
+          <a href={isPortalDomain() ? "/register" : "/customer/signup"} className="text-orange-500 hover:underline">
+            Daftar
           </a>
         </p>
       </div>

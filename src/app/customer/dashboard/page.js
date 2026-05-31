@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { portalLink } from "@/lib/customer/portalLinks";
 
 export default function CustomerDashboardPage() {
   return (
@@ -27,7 +28,7 @@ function CustomerDashboardInner() {
     try {
       const res = await fetch("/api/customer/me", { cache: "no-store" });
       if (res.status === 401) {
-        router.replace("/customer/login");
+        router.replace(portalLink("/customer/login"));
         return;
       }
       const json = await res.json();
@@ -102,7 +103,7 @@ function CustomerDashboardInner() {
 
   const logout = async () => {
     await fetch("/api/customer/logout", { method: "POST" });
-    router.replace("/customer/login");
+    router.replace(portalLink("/customer/login"));
   };
 
   if (loading) {
@@ -138,7 +139,7 @@ function CustomerDashboardInner() {
         </div>
         <div className="flex gap-2">
           <a
-            href="/customer/pricing"
+            href={portalLink("/customer/pricing")}
             className="rounded-md bg-orange-600 hover:bg-orange-500 px-3 py-1.5 text-xs font-medium text-white transition"
           >
             Upgrade / Perpanjang
@@ -564,7 +565,7 @@ function PlanExpiryBanner({ customer }) {
           Expired: {expiry.toLocaleDateString("id-ID", { dateStyle: "full" })}
         </span>
         <a
-          href="/customer/pricing"
+          href={portalLink("/customer/pricing")}
           className={`rounded-md px-3 py-1 text-xs font-medium text-white transition ${
             isExpired ? "bg-red-600 hover:bg-red-500" : "bg-yellow-600 hover:bg-yellow-500"
           }`}

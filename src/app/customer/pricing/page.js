@@ -3,6 +3,7 @@
 
 import { Suspense, useState } from "react";
 import { useRouter } from "next/navigation";
+import { portalLink } from "@/lib/customer/portalLinks";
 
 const PLANS = [
   {
@@ -63,14 +64,14 @@ function PricingInner() {
       });
 
       if (res.status === 401) {
-        router.push("/customer/login");
+        router.push(portalLink("/customer/login"));
         return;
       }
 
       const data = await res.json();
       if (!res.ok) {
         if (data.pendingOrder) {
-          router.push(`/customer/checkout/${data.pendingOrder}`);
+          router.push(portalLink(`/customer/checkout/${data.pendingOrder}`));
           return;
         }
         setError(data.error || "Gagal membuat pesanan");
@@ -78,7 +79,7 @@ function PricingInner() {
         return;
       }
 
-      router.push(`/customer/checkout/${data.order.orderId}`);
+      router.push(portalLink(`/customer/checkout/${data.order.orderId}`));
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -93,8 +94,8 @@ function PricingInner() {
           <h1 className="text-3xl font-bold text-white mb-2">Pilih Plan</h1>
           <p className="text-zinc-400">Bayar langsung, aktif instan. Perpanjang kapan saja.</p>
           <div className="mt-3 flex justify-center gap-3">
-            <a href="/customer/dashboard" className="text-xs text-zinc-500 hover:text-orange-400">Dashboard</a>
-            <a href="/customer/orders" className="text-xs text-zinc-500 hover:text-orange-400">Riwayat Pesanan</a>
+            <a href={portalLink("/customer/dashboard")} className="text-xs text-zinc-500 hover:text-orange-400">Dashboard</a>
+            <a href={portalLink("/customer/orders")} className="text-xs text-zinc-500 hover:text-orange-400">Riwayat Pesanan</a>
           </div>
         </div>
 

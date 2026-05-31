@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { isPortalDomain, portalLink } from "@/lib/customer/portalLinks";
 
 export default function CustomerSignupPage() {
   const router = useRouter();
@@ -44,7 +45,7 @@ export default function CustomerSignupPage() {
           sessionStorage.setItem("cortex_first_key", JSON.stringify(data.apiKey));
         } catch {}
       }
-      router.push("/customer/dashboard?welcome=1");
+      router.push(portalLink("/customer/dashboard") + "?welcome=1");
     } catch (err) {
       setError(err?.message || String(err));
       setSubmitting(false);
@@ -127,8 +128,8 @@ export default function CustomerSignupPage() {
 
         <p className="mt-6 text-center text-xs text-zinc-500">
           Already have an account?{" "}
-          <a href="/customer/login" className="text-orange-500 hover:underline">
-            Sign in
+          <a href={portalLink("/customer/login")} className="text-orange-500 hover:underline">
+            Masuk
           </a>
         </p>
       </div>

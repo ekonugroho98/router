@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { portalLink } from "@/lib/customer/portalLinks";
 
 export default function CheckoutPage() {
   return (
@@ -24,7 +25,7 @@ function CheckoutInner() {
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch(`/api/customer/orders/${orderId}/status`);
-      if (res.status === 401) { router.replace("/customer/login"); return; }
+      if (res.status === 401) { router.replace(portalLink("/customer/login")); return; }
       const data = await res.json();
       if (!res.ok) { setError(data.error); setLoading(false); return; }
       setOrder(data.order);
@@ -75,7 +76,7 @@ function CheckoutInner() {
       <div className="mx-auto max-w-lg">
         {/* Back link */}
         <div className="mb-6">
-          <a href="/customer/pricing" className="text-xs text-zinc-500 hover:text-orange-400">&larr; Kembali ke Pricing</a>
+          <a href={portalLink("/customer/pricing")} className="text-xs text-zinc-500 hover:text-orange-400">&larr; Kembali ke Pricing</a>
         </div>
 
         {/* Completed */}
@@ -87,7 +88,7 @@ function CheckoutInner() {
               Plan <strong>{order.planName}</strong> sudah aktif selama {order.durationDays} hari.
             </p>
             <button
-              onClick={() => router.push("/customer/dashboard")}
+              onClick={() => router.push(portalLink("/customer/dashboard"))}
               className="rounded-xl bg-green-600 hover:bg-green-500 px-6 py-3 text-sm font-semibold text-white transition"
             >
               Ke Dashboard
@@ -102,7 +103,7 @@ function CheckoutInner() {
             <h2 className="text-xl font-bold text-red-400 mb-2">Pembayaran Dibatalkan</h2>
             <p className="text-sm text-zinc-400 mb-4">Pesanan ini sudah expired atau dibatalkan.</p>
             <button
-              onClick={() => router.push("/customer/pricing")}
+              onClick={() => router.push(portalLink("/customer/pricing"))}
               className="rounded-xl bg-orange-600 hover:bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition"
             >
               Buat Pesanan Baru

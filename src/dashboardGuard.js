@@ -168,8 +168,83 @@ export const __test__ = {
   canAccessLocalOnlyRoute,
 };
 
+// Portal domain — serves customer-facing pages at cortex-ai.my.id
+const PORTAL_DOMAINS = ["cortex-ai.my.id", "www.cortex-ai.my.id"];
+
+// Portal path rewrites: portal path -> internal Next.js path
+const PORTAL_REWRITES = {
+  "/": "/portal",
+  "/register": "/portal/register",
+  "/login": "/customer/login",
+  "/dashboard": "/customer/dashboard",
+  "/pricing": "/customer/pricing",
+  "/orders": "/customer/orders",
+  // /checkout/* and /api/* are handled by prefix matching below
+};
+
+function isPortalDomain(host) {
+  if (!host) return false;
+  const hostname = host.split(":")[0].toLowerCase();
+  return PORTAL_DOMAINS.includes(hostname);
+}
+
 export async function proxy(request) {
   const { pathname } = request.nextUrl;
+  const host = request.headers.get("host") || "";
+
+  // --- Portal domain routing (cortex-ai.my.id) ---
+  if (isPortalDomain(host)) {
+    // Allow API routes through (customer APIs, webhooks, public APIs)
+    if (pathname.startsWith("/api/")) {
+      // Only allow customer + webhook + public APIs on portal domain
+      if (
+        pathname.startsWith("/api/customer") ||
+        pathname.startsWith("/api/webhook") ||
+        pathname.startsWith("/api/public") ||
+        pathname.startsWith("/api/health") ||
+        isPublicLlmApi(pathname)
+      ) {
+        return NextResponse.next();
+      }
+      // Block admin APIs on portal domain
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Allow Next.js internals
+    if (pathname.startsWith("/_next/") || pathname === "/favicon.ico") {
+      return NextResponse.next();
+    }
+
+    // Exact path rewrites
+    const rewriteTo = PORTAL_REWRITES[pathname];
+    if (rewriteTo) {
+      const url = request.nextUrl.clone();
+      url.pathname = rewriteTo;
+      return NextResponse.rewrite(url);
+    }
+
+    // Prefix rewrites: /checkout/* -> /customer/checkout/*
+    if (pathname.startsWith("/checkout/")) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/customer${pathname}`;
+      return NextResponse.rewrite(url);
+    }
+
+    // /customer/* paths — pass through (for backward compat links)
+    if (pathname.startsWith("/customer")) {
+      return NextResponse.next();
+    }
+
+    // Block admin dashboard on portal domain
+    if (pathname.startsWith("/dashboard") || pathname === "/login" || pathname === "/landing") {
+      return NextResponse.rewrite(new URL("/portal", request.url));
+    }
+
+    // Everything else on portal -> landing
+    return NextResponse.rewrite(new URL("/portal", request.url));
+  }
+
+  // --- Normal 9router domain routing below ---
 
   // Local-only gate for spawn-capable / host-secret routes.
   if (LOCAL_ONLY_PATHS.some((p) => pathname.startsWith(p))) {

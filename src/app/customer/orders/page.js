@@ -3,6 +3,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { portalLink } from "@/lib/customer/portalLinks";
 
 export default function OrdersPage() {
   return (
@@ -20,7 +21,7 @@ function OrdersInner() {
   useEffect(() => {
     fetch("/api/customer/orders")
       .then((r) => {
-        if (r.status === 401) { router.replace("/customer/login"); return null; }
+        if (r.status === 401) { router.replace(portalLink("/customer/login")); return null; }
         return r.json();
       })
       .then((data) => {
@@ -44,8 +45,8 @@ function OrdersInner() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-white">Riwayat Pesanan</h1>
           <div className="flex gap-3">
-            <a href="/customer/dashboard" className="text-xs text-zinc-500 hover:text-orange-400">Dashboard</a>
-            <a href="/customer/pricing" className="rounded-lg bg-orange-600 hover:bg-orange-500 px-4 py-2 text-xs font-medium text-white transition">
+            <a href={portalLink("/customer/dashboard")} className="text-xs text-zinc-500 hover:text-orange-400">Dashboard</a>
+            <a href={portalLink("/customer/pricing")} className="rounded-lg bg-orange-600 hover:bg-orange-500 px-4 py-2 text-xs font-medium text-white transition">
               Beli Plan
             </a>
           </div>
@@ -56,7 +57,7 @@ function OrdersInner() {
             <div className="text-4xl mb-3 opacity-50">&#128722;</div>
             <p className="text-zinc-500 mb-4">Belum ada pesanan</p>
             <a
-              href="/customer/pricing"
+              href={portalLink("/customer/pricing")}
               className="inline-block rounded-lg bg-orange-600 hover:bg-orange-500 px-6 py-3 text-sm font-medium text-white transition"
             >
               Lihat Plan
@@ -112,7 +113,7 @@ function OrderCard({ order }) {
           <div className="text-sm font-semibold text-white">Rp {Number(order.amount).toLocaleString("id-ID")}</div>
           {order.status === "pending" && (
             <a
-              href={`/customer/checkout/${order.orderId}`}
+              href={portalLink(`/customer/checkout/${order.orderId}`)}
               className="text-[10px] text-orange-400 hover:underline"
             >
               Bayar sekarang &rarr;
